@@ -28,7 +28,6 @@ export default function App() {
   const MAX_AXLE_LOAD = 10000;
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  // 分配比率の逆数合計
   const inverseSum =
     1 / influences.mid1 + 1 / influences.mid2 + 1 / influences.rear;
 
@@ -73,12 +72,16 @@ export default function App() {
         <strong>あと積める目安：</strong> {remaining.toFixed(0)}kg
       </p>
 
-      <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
-      <ul>
-        <li>MID1：{estimates.mid1}kg</li>
-        <li>MID2：{estimates.mid2}kg</li>
-        <li>REAR：{estimates.rear}kg</li>
-      </ul>
+      {remaining > 0 && (
+        <>
+          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
+          <ul>
+            <li>MID1：{estimates.mid1}kg</li>
+            <li>MID2：{estimates.mid2}kg</li>
+            <li>REAR：{estimates.rear}kg</li>
+          </ul>
+        </>
+      )}
     </div>
   );
 }
