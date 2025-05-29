@@ -28,60 +28,68 @@ export default function App() {
   const MAX_AXLE_LOAD = 10000;
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  // --- 正確な積載目安計算（Excelと同様） ---
-  const w1 = 1 / influences.mid1;
-  const w2 = 1 / influences.mid2;
-  const w3 = 1 / influences.rear;
-  const totalWeight = w1 + w2 + w3;
-
-  const targetAreas = {
-    mid1: Math.round((remaining * w1) / totalWeight),
-    mid2: Math.round((remaining * w2) / totalWeight),
-    rear: Math.round((remaining * w3) / totalWeight),
-  };
-
+  // 配分計算：未入力のエリアに対して逆算分配
   const emptyKeys = Object.entries(weights)
     .filter(([_, val]) => val === "")
     .map(([key]) => key);
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <h2>第2軸 荷重計算ツール</h2>
+  const totalInverse = emptyKeys.reduce(
+    (sum, key) => sum + 1 / influences[key],
+    0
+  );
 
-      {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: "10px" }}>
-          <label style={{ width: "100px", display: "inline-block" }}>
-            {key.toUpperCase()}（kg）:
+  const suggestedLoads = Object.fromEntries(
+    Object.keys(influences).map((key) => {
+      if (weights[key] !== "") return [key, null];
+      const portion = (1 / influences[key]) / totalInverse;
+      return [key, Math.round(portion * remaining)];
+    })
+  );
+
+  return (
+    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+      <h2>第2軸 荷重計算ツール</h2>
+      {Object.keys(weights).map((key) => (
+        <div key={key} style={{ marginBottom: 10 }}>
+          <label>
+            {key.toUpperCase()}（kg）：
+            <input
+              type="number"
+              name={key}
+              value={weights[key]}
+              onChange={(e) =>
+                setWeights({ ...weights, [key]: e.target.value })
+              }
+              style={{ marginLeft: 10 }}
+              placeholder="kg 単位で入力"
+            />
           </label>
-          <input
-            type="number"
-            name={key}
-            value={weights[key]}
-            onChange={(e) =>
-              setWeights({ ...weights, [key]: e.target.value })
-            }
-          />
         </div>
       ))}
 
       <hr />
       <p>
-        <strong>現在の第2軸荷重：</strong>
-        {usedLoad.toFixed(0)}kg
+        現在の第2軸荷重：<strong>{usedLoad.toFixed(0)}kg</strong>
       </p>
       <p>
-        <strong>あと積める目安：</strong>
-        {remaining.toFixed(0)}kg
+        あと積める目安：<strong>{remaining.toFixed(0)}kg</strong>
       </p>
 
       {emptyKeys.length > 0 ? (
-        <p style={{ color: "gray" }}>
-          👉 {emptyKeys.join(", ")} が未入力です
-        </p>
-      ) : (
         <>
+          <p style={{ color: "gray" }}>
+            👉 {emptyKeys.join(", ")} が未入力です
+          </p>
           <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            {Object.entries(targetAreas).map(([key, val]) => (
+            {emptyKeys.map((key) => (
               <li key={key}>
-                {key.toUpperCase()}：{
+                {key.toUpperCase()}：{suggestedLoads[key]}kg
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
