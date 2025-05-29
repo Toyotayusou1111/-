@@ -28,60 +28,60 @@ export default function App() {
   const MAX_AXLE_LOAD = 10000;
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  const inverseSum =
-    1 / influences.mid1 + 1 / influences.mid2 + 1 / influences.rear;
+  // --- 正確な積載目安計算（Excelと同様） ---
+  const w1 = 1 / influences.mid1;
+  const w2 = 1 / influences.mid2;
+  const w3 = 1 / influences.rear;
+  const totalWeight = w1 + w2 + w3;
 
-  const estimates = {
-    mid1: Math.round((1 / influences.mid1 / inverseSum) * remaining),
-    mid2: Math.round((1 / influences.mid2 / inverseSum) * remaining),
-    rear: Math.round((1 / influences.rear / inverseSum) * remaining),
+  const targetAreas = {
+    mid1: Math.round((remaining * w1) / totalWeight),
+    mid2: Math.round((remaining * w2) / totalWeight),
+    rear: Math.round((remaining * w3) / totalWeight),
   };
 
-  const handleChange = (e) => {
-    setWeights((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  const emptyKeys = Object.entries(weights)
+    .filter(([_, val]) => val === "")
+    .map(([key]) => key);
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+    <div style={{ padding: "20px" }}>
       <h2>第2軸 荷重計算ツール</h2>
 
       {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: 10 }}>
-          <label style={{ display: "inline-block", width: 100 }}>
+        <div key={key} style={{ marginBottom: "10px" }}>
+          <label style={{ width: "100px", display: "inline-block" }}>
             {key.toUpperCase()}（kg）:
           </label>
           <input
             type="number"
             name={key}
             value={weights[key]}
-            onChange={handleChange}
-            placeholder="kg 単位で入力"
+            onChange={(e) =>
+              setWeights({ ...weights, [key]: e.target.value })
+            }
           />
         </div>
       ))}
 
       <hr />
-
       <p>
-        <strong>現在の第2軸荷重：</strong> {usedLoad.toFixed(0)}kg
+        <strong>現在の第2軸荷重：</strong>
+        {usedLoad.toFixed(0)}kg
       </p>
       <p>
-        <strong>あと積める目安：</strong> {remaining.toFixed(0)}kg
+        <strong>あと積める目安：</strong>
+        {remaining.toFixed(0)}kg
       </p>
 
-      {remaining > 0 && (
+      {emptyKeys.length > 0 ? (
+        <p style={{ color: "gray" }}>
+          👉 {emptyKeys.join(", ")} が未入力です
+        </p>
+      ) : (
         <>
           <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            <li>MID1：{estimates.mid1}kg</li>
-            <li>MID2：{estimates.mid2}kg</li>
-            <li>REAR：{estimates.rear}kg</li>
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
+            {Object.entries(targetAreas).map(([key, val]) => (
+              <li key={key}>
+                {key.toUpperCase()}：{
