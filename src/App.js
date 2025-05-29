@@ -29,38 +29,37 @@ export default function App() {
 
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  // 奥に再配分（入力されていないエリアだけ対象）
   const areas = ["mid1", "mid2", "rear"];
-  const emptyAreas = areas.filter((area) => !weights[area]);
+  const emptyAreas = areas.filter((area) => weights[area] === "");
 
   const recommended = {};
   if (emptyAreas.length > 0 && remaining > 0) {
     const sumInverseSquare = emptyAreas.reduce(
-      (sum, area) => sum + 1 / Math.pow(influences[area], 2),
+      (acc, area) => acc + 1 / Math.pow(influences[area], 2),
       0
     );
-    emptyAreas.forEach((area) => {
-      recommended[area] =
-        (remaining * (1 / Math.pow(influences[area], 2))) / sumInverseSquare;
-    });
+
+    for (const area of emptyAreas) {
+      const ratio = 1 / Math.pow(influences[area], 2);
+      const share = (ratio / sumInverseSquare) * remaining;
+      recommended[area] = Math.round(share);
+    }
   }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>第2軸 荷重計算ツール</h2>
-
-      {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: "10px" }}>
-          <label>
-            {key.toUpperCase()}（kg）：
+    <div style={{ padding: 20 }}>
+      <h1>第2軸 荷重計算ツール</h1>
+      {["front", "mid1", "mid2", "rear"].map((area) => (
+        <div key={area}>
+          <label style={{ marginRight: 10 }}>
+            {area.toUpperCase()}（kg）：{" "}
             <input
               type="number"
-              value={weights[key]}
+              value={weights[area]}
               onChange={(e) =>
-                setWeights({ ...weights, [key]: e.target.value })
+                setWeights({ ...weights, [area]: e.target.value })
               }
-              placeholder="kg単位で入力"
-              style={{ marginLeft: "10px", width: "120px" }}
+              placeholder="kg 単位で入力"
             />
           </label>
         </div>
@@ -80,17 +79,15 @@ export default function App() {
           <ul>
             {emptyAreas.map((area) => (
               <li key={area}>
-                {area.toUpperCase()}：{recommended[area].toFixed(0)}kg
+                {area.toUpperCase()}：{recommended[area]}kg
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {emptyAreas.length === 0 && (
-        <p style={{ color: "gray" }}>
-          👉 mid1, mid2, rear が未入力です
-        </p>
+      {emptyAreas.length === 0 && remaining > 0 && (
+        <p style={{ color: "gray" }}>👉 MID1, MID2, REAR が未入力です</p>
       )}
     </div>
   );
