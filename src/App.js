@@ -29,45 +29,68 @@ export default function App() {
 
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  const allKeys = ["mid1", "mid2", "rear"];
-  const emptyKeys = allKeys.filter((k) => !weights[k]);
+  const areas = ["mid1", "mid2", "rear"];
+  const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyKeys.length > 0 && remaining > 0) {
-    const denom = emptyKeys
-      .map((k) => Math.pow(influences[k], 2))
-      .reduce((a, b) => a + b, 0);
+  if (emptyAreas.length > 0 && remaining > 0) {
+    const sumInverseSquare = emptyAreas.reduce(
+      (sum, key) => sum + 1 / Math.pow(influences[key], 2),
+      0
+    );
 
-    emptyKeys.forEach((k) => {
-      const val =
-        (Math.pow(influences[k], 2) * remaining) /
-        (influences[k] * denom);
-      recommended[k] = Math.round(val);
+    emptyAreas.forEach((key) => {
+      const ratio = (1 / Math.pow(influences[key], 2)) / sumInverseSquare;
+      recommended[key] = Math.round(ratio * remaining);
     });
   }
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setWeights((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleClear = (key) => {
+    setWeights((prev) => ({
+      ...prev,
+      [key]: "",
+    }));
+  };
+
   return (
-    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h2>第2軸 荷重計算ツール</h2>
 
-      {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: 10 }}>
-          <label>
-            {key.toUpperCase()}（kg）：
+      {Object.entries(weights).map(([key, val]) => (
+        <div key={key} style={{ marginBottom: "1rem" }}>
+          <label style={{ marginRight: "0.5rem" }}>
+            {key.toUpperCase()}（kg）:
             <input
               type="number"
-              value={weights[key]}
-              onChange={(e) =>
-                setWeights({ ...weights, [key]: e.target.value })
-              }
-              style={{ marginLeft: 10 }}
-              placeholder="kg単位で入力"
+              name={key}
+              value={val}
+              onChange={handleChange}
+              style={{ marginLeft: "0.5rem", width: "100px" }}
             />
           </label>
+          <button
+            type="button"
+            onClick={() => handleClear(key)}
+            style={{
+              marginLeft: "0.5rem",
+              backgroundColor: "#eee",
+              border: "1px solid #ccc",
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
         </div>
       ))}
 
-      <hr />
       <p>
         <strong>現在の第2軸荷重：</strong>
         {usedLoad.toFixed(0)}kg
@@ -77,22 +100,23 @@ export default function App() {
         {remaining.toFixed(0)}kg
       </p>
 
-      {emptyKeys.length > 0 && remaining > 0 ? (
+      {emptyAreas.length > 0 ? (
         <>
-          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
+          <p>
+            👉 <strong>{emptyAreas.join(", ").toUpperCase()}</strong> が未入力です
+          </p>
+          <p>
+            <strong>各エリア別 積載目安（第2軸10t超えない範囲）</strong>
+          </p>
           <ul>
-            {emptyKeys.map((key) => (
+            {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
-                {key.toUpperCase()}：{recommended[key]}kg
+                {key.toUpperCase()}：{val}kg
               </li>
             ))}
           </ul>
         </>
-      ) : (
-        <p style={{ color: "gray" }}>
-          👉 {emptyKeys.join(", ").toUpperCase()} が未入力です
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }
