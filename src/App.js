@@ -41,25 +41,24 @@ const emptyAreas = areas.filter((area) => !weights\[area]);
 
 const recommended = {};
 if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
-const fixedRatios = {
-mid1: 0.2110,
-mid2: 0.3230,
-rear: 0.2790,
+const ratios = {
+mid1: 0.211,
+mid2: 0.323,
+rear: 0.279,
 };
 
 ```
-const totalRatio = emptyAreas.reduce((sum, area) => sum + fixedRatios[area], 0);
+const sumRatios = emptyAreas.reduce((acc, key) => acc + ratios[key], 0);
 
 let rawRecommended = {};
-emptyAreas.forEach((area) => {
-  rawRecommended[area] = MAX_TOTAL_LOAD * (fixedRatios[area] / totalRatio);
+emptyAreas.forEach((key) => {
+  rawRecommended[key] = (MAX_TOTAL_LOAD * ratios[key]) / sumRatios;
 });
 
 const rawAxle = Object.entries(rawRecommended).reduce(
   (acc, [key, val]) => acc + val * influences[key],
   parsedWeights.front * influences.front
 );
-
 const scale = (MAX_AXLE_LOAD - parsedWeights.front * influences.front) /
   (rawAxle - parsedWeights.front * influences.front);
 
@@ -90,7 +89,7 @@ style={{ marginLeft: "0.5rem" }}
 ✖ </button> </label> </div>
 ))} <div> <strong>現在の第2軸荷重：</strong>
 {Math.round(usedLoad).toLocaleString()}kg </div> <div> <strong>あと積める目安：</strong>
-{Math.round(remainingAxle).toLocaleString()}kg </div>
+{Math.round(MAX\_AXLE\_LOAD - usedLoad).toLocaleString()}kg </div>
 {emptyAreas.length > 0 && (
 \<div style={{ marginTop: "1rem" }}>
 👉 <strong>{emptyAreas.map((e) => e.toUpperCase()).join(", ")}</strong>
