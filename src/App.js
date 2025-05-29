@@ -19,64 +19,56 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
+  const MAX_AXLE_LOAD = 10000;
+
   const usedLoad =
     parsedWeights.front * influences.front +
     parsedWeights.mid1 * influences.mid1 +
     parsedWeights.mid2 * influences.mid2 +
     parsedWeights.rear * influences.rear;
 
-  const MAX_AXLE_LOAD = 10000;
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  // Excelと同じ「残容量の逆数分配ロジック」
-  const isEntered = (val) => val !== "" && !isNaN(val);
-  const isMid1Entered = isEntered(weights.mid1);
-  const isMid2Entered = isEntered(weights.mid2);
-  const isRearEntered = isEntered(weights.rear);
+  // Excel式と完全一致：未入力エリアへ影響率2乗に応じて配分
+  const keys = ["mid1", "mid2", "rear"];
+  const emptyKeys = keys.filter((k) => weights[k] === "");
+  const filledLoad =
+    parsedWeights.front * influences.front +
+    keys
+      .filter((k) => weights[k] !== "")
+      .reduce((acc, k) => acc + parsedWeights[k] * influences[k], 0);
 
-  let remainingSuggestion = {};
-  if (!isMid1Entered || !isMid2Entered || !isRearEntered) {
-    const influenceEntries = [
-      ["mid1", influences.mid1],
-      ["mid2", influences.mid2],
-      ["rear", influences.rear],
-    ].filter(([key]) => !isEntered(weights[key]));
-
-    const inverseSum = influenceEntries.reduce(
-      (sum, [, inf]) => sum + 1 / inf,
+  const distributed = {};
+  if (emptyKeys.length > 0) {
+    const total = emptyKeys.reduce(
+      (acc, key) => acc + influences[key] ** 2,
       0
     );
-
-    remainingSuggestion = Object.fromEntries(
-      influenceEntries.map(([key, inf]) => [
-        key,
-        Math.round((remaining / inf / inverseSum)),
-      ])
-    );
+    emptyKeys.forEach((key) => {
+      distributed[key] = ((influences[key] ** 2) / total) * (MAX_AXLE_LOAD - filledLoad * 1);
+    });
   }
 
-  const handleChange = (e) => {
-    setWeights({ ...weights, [e.target.name]: e.target.value });
+  const handleChange = (key, val) => {
+    setWeights((w) => ({ ...w, [key]: val }));
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
       <h2>第2軸 荷重計算ツール</h2>
       {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: 8 }}>
-          <label style={{ display: "inline-block", width: 100 }}>
-            {key.toUpperCase()}（kg）:
+        <div key={key} style={{ marginBottom: 10 }}>
+          <label>
+            {key.toUpperCase()}（kg）：{" "}
+            <input
+              type="number"
+              value={weights[key]}
+              onChange={(e) => handleChange(key, e.target.value)}
+              placeholder="kg 単位で入力"
+            />
           </label>
-          <input
-            type="number"
-            name={key}
-            value={weights[key]}
-            onChange={handleChange}
-            placeholder="kg 単位で入力"
-          />
         </div>
       ))}
-
       <hr />
       <p>
         現在の第2軸荷重：<strong>{usedLoad.toFixed(0)}kg</strong>
@@ -85,20 +77,20 @@ export default function App() {
         あと積める目安：<strong>{remaining.toFixed(0)}kg</strong>
       </p>
 
-      {Object.keys(remainingSuggestion).length > 0 ? (
+      {emptyKeys.length > 0 ? (
         <>
-          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
+          <p>👉 未入力の各エリアへの積載目安（第2軸10t超えない範囲）</p>
           <ul>
-            {Object.entries(remainingSuggestion).map(([key, value]) => (
+            {emptyKeys.map((key) => (
               <li key={key}>
-                {key.toUpperCase()}：{value}kg
+                {key.toUpperCase()}：{distributed[key].toFixed(0)}kg
               </li>
             ))}
           </ul>
         </>
       ) : (
         <p style={{ color: "gray" }}>
-          👉 mid1, mid2, rear が未入力です
+          👉 MID1, MID2, REAR が未入力です
         </p>
       )}
     </div>
