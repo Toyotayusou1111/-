@@ -48,12 +48,11 @@ rear: 0.279,
 };
 
 ```
-// 未入力エリアの合計比率
 const ratioSum = emptyAreas.reduce((acc, key) => acc + ratios[key], 0);
 
 const rawRecommended = {};
 emptyAreas.forEach((key) => {
-  rawRecommended[key] = MAX_TOTAL_LOAD * (ratios[key] / ratioSum);
+  rawRecommended[key] = remainingTotal * (ratios[key] / ratioSum);
 });
 
 const frontAxle = parsedWeights.front * influences.front;
