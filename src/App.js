@@ -8,6 +8,8 @@ export default function App() {
     rear: "",
   });
 
+  const MAX_AXLE_LOAD = 10000;
+
   const influences = {
     front: 0.6,
     mid1: 0.8,
@@ -15,76 +17,71 @@ export default function App() {
     rear: 0.2,
   };
 
-  const MAX_LOAD = 10000;
-
   const parsedWeights = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const currentLoad =
+  const usedLoad =
     parsedWeights.front * influences.front +
     parsedWeights.mid1 * influences.mid1 +
     parsedWeights.mid2 * influences.mid2 +
     parsedWeights.rear * influences.rear;
 
-  const remaining = Math.max(0, MAX_LOAD - currentLoad);
+  const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  // 分配対象（ひな壇以外）
+  const emptyKeys = Object.entries(weights)
+    .filter(([_, val]) => val === "")
+    .map(([key]) => key);
+
+  // 各エリアにあと何kg積めば10tに届くか逆算
   const targetAreas = ["mid1", "mid2", "rear"];
-  const totalInfluence = targetAreas.reduce(
-    (sum, key) => sum + influences[key],
-    0
-  );
-
-  const suggestions = Object.fromEntries(
+  const remainingRatios = targetAreas.map((key) => influences[key]);
+  const ratioSum = remainingRatios.reduce((a, b) => a + b, 0);
+  const suggestedLoads = Object.fromEntries(
     targetAreas.map((key) => [
       key,
-      remaining > 0
-        ? Math.floor((remaining * influences[key]) / totalInfluence)
-        : 0,
+      Math.floor((remaining * influences[key]) / ratioSum),
     ])
   );
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setWeights({ ...weights, [name]: value });
-  };
-
   return (
-    <div style={{ padding: "2rem", fontFamily: "Arial" }}>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
       <h2>第2軸 荷重計算ツール</h2>
-
-      {Object.entries(weights).map(([key, value]) => (
-        <div key={key} style={{ marginBottom: "1rem" }}>
+      {["front", "mid1", "mid2", "rear"].map((key) => (
+        <div key={key} style={{ marginBottom: "10px" }}>
           <label>
-            {key.toUpperCase()}（kg）:
+            {key.toUpperCase()}（kg）：
             <input
               type="number"
               name={key}
-              value={value}
-              onChange={handleChange}
+              value={weights[key]}
+              onChange={(e) =>
+                setWeights({ ...weights, [key]: e.target.value })
+              }
+              style={{ marginLeft: "10px" }}
               placeholder="kg 単位で入力"
-              style={{ marginLeft: "1rem" }}
             />
           </label>
         </div>
       ))}
 
       <hr />
-      <p>現在の第2軸荷重：<strong>{currentLoad.toFixed(0)}kg</strong></p>
-      <p>あと積める目安：<strong>{remaining.toFixed(0)}kg</strong></p>
+      <p>
+        現在の第2軸荷重：<strong>{usedLoad.toFixed(0)}kg</strong>
+      </p>
+      <p>
+        あと積める目安：<strong>{remaining.toFixed(0)}kg</strong>
+      </p>
 
       {remaining > 0 && (
-        <>
+        <div>
           <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            {targetAreas.map((key) => (
-              <li key={key}>
-                {key.toUpperCase()}：{suggestions[key]}kg
-              </li>
-            ))}
+            <li>MID1：{suggestedLoads.mid1}kg</li>
+            <li>MID2：{suggestedLoads.mid2}kg</li>
+            <li>REAR：{suggestedLoads.rear}kg</li>
           </ul>
-        </>
+        </div>
       )}
     </div>
   );
