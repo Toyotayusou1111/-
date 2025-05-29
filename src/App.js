@@ -41,25 +41,22 @@ const emptyAreas = areas.filter((area) => !weights\[area]);
 
 const recommended = {};
 if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
-// ステップ1：影響率の逆数の2乗で重みを計算
 const sumInverseSquare = emptyAreas.reduce(
 (acc, area) => acc + 1 / Math.pow(influences\[area], 2),
 0
 );
+let rawRecommended = {};
 emptyAreas.forEach((area) => {
 const ratio = 1 / Math.pow(influences\[area], 2) / sumInverseSquare;
-recommended\[area] = (remainingAxle \* ratio) / influences\[area];
+rawRecommended\[area] = (remainingAxle \* ratio) / influences\[area];
 });
 
 ```
-// ステップ2：合計19700kgの制限にも合わせて再スケーリング
-const totalFromEstimate = Object.values(recommended).reduce(
-  (acc, val) => acc + val,
-  0
-);
-const scale = remainingTotal / totalFromEstimate;
+const totalRaw = Object.values(rawRecommended).reduce((acc, val) => acc + val, 0);
+const scale = remainingTotal / totalRaw;
+
 emptyAreas.forEach((area) => {
-  recommended[area] = Math.round(recommended[area] * scale);
+  recommended[area] = Math.round(rawRecommended[area] * scale);
 });
 ```
 
@@ -85,7 +82,7 @@ style={{ marginLeft: "0.5rem" }}
 ✖ </button> </label> </div>
 ))} <div> <strong>現在の第2軸荷重：</strong>
 {Math.round(usedLoad).toLocaleString()}kg </div> <div> <strong>あと積める目安：</strong>
-{Math.round(remainingAxle).toLocaleString()}kg </div>
+{Math.round(MAX\_AXLE\_LOAD - usedLoad).toLocaleString()}kg </div>
 {emptyAreas.length > 0 && (
 \<div style={{ marginTop: "1rem" }}>
 👉 <strong>{emptyAreas.map((e) => e.toUpperCase()).join(", ")}</strong>
