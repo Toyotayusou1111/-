@@ -29,58 +29,68 @@ export default function App() {
 
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  const areas = ["mid1", "mid2", "rear"];
-  const emptyAreas = areas.filter((area) => !weights[area]);
+  const allKeys = ["mid1", "mid2", "rear"];
+  const emptyKeys = allKeys.filter((k) => !weights[k]);
 
   const recommended = {};
+  if (emptyKeys.length > 0 && remaining > 0) {
+    const denom = emptyKeys
+      .map((k) => Math.pow(influences[k], 2))
+      .reduce((a, b) => a + b, 0);
 
-  if (emptyAreas.length > 0 && remaining > 0) {
-    const numerator = (10000 - usedLoad);
-    const denominator = emptyAreas.reduce(
-      (acc, area) => acc + 1 / influences[area] ** 2,
-      0
-    );
-    for (const area of emptyAreas) {
-      recommended[area] = (numerator / denominator) / influences[area] ** 2;
-    }
+    emptyKeys.forEach((k) => {
+      const val =
+        (Math.pow(influences[k], 2) * remaining) /
+        (influences[k] * denom);
+      recommended[k] = Math.round(val);
+    });
   }
 
-  const handleChange = (key, value) => {
-    setWeights({ ...weights, [key]: value });
-  };
-
   return (
-    <div style={{ padding: 20 }}>
-      <h1>第2軸 荷重計算ツール</h1>
-      {Object.keys(weights).map((key) => (
+    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
+      <h2>第2軸 荷重計算ツール</h2>
+
+      {["front", "mid1", "mid2", "rear"].map((key) => (
         <div key={key} style={{ marginBottom: 10 }}>
-          <label>{key.toUpperCase()}（kg）:</label>
-          <input
-            type="number"
-            value={weights[key]}
-            onChange={(e) => handleChange(key, e.target.value)}
-            placeholder="kg単位で入力"
-          />
+          <label>
+            {key.toUpperCase()}（kg）：
+            <input
+              type="number"
+              value={weights[key]}
+              onChange={(e) =>
+                setWeights({ ...weights, [key]: e.target.value })
+              }
+              style={{ marginLeft: 10 }}
+              placeholder="kg単位で入力"
+            />
+          </label>
         </div>
       ))}
+
       <hr />
-      <p><strong>現在の第2軸荷重：</strong>{usedLoad.toFixed(0)}kg</p>
-      <p><strong>あと積める目安：</strong>{remaining.toFixed(0)}kg</p>
-      {emptyAreas.length > 0 && (
+      <p>
+        <strong>現在の第2軸荷重：</strong>
+        {usedLoad.toFixed(0)}kg
+      </p>
+      <p>
+        <strong>あと積める目安：</strong>
+        {remaining.toFixed(0)}kg
+      </p>
+
+      {emptyKeys.length > 0 && remaining > 0 ? (
         <>
           <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            {emptyAreas.map((key) => (
+            {emptyKeys.map((key) => (
               <li key={key}>
-                {key.toUpperCase()}：{recommended[key]?.toFixed(0)}kg
+                {key.toUpperCase()}：{recommended[key]}kg
               </li>
             ))}
           </ul>
         </>
-      )}
-      {emptyAreas.length === 0 && (
+      ) : (
         <p style={{ color: "gray" }}>
-          👉 MID1, MID2, REAR が未入力です
+          👉 {emptyKeys.join(", ").toUpperCase()} が未入力です
         </p>
       )}
     </div>
