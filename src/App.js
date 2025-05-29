@@ -29,94 +29,64 @@ export default function App() {
 
   const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  const areas = ["mid1", "mid2", "rear"];
-  const emptyAreas = areas.filter((area) => !weights[area]);
+  const allKeys = ["mid1", "mid2", "rear"];
+  const emptyKeys = allKeys.filter((key) => !weights[key]);
+  const usedKeys = allKeys.filter((key) => weights[key]);
 
-  const recommended = {};
-  if (emptyAreas.length > 0 && remaining > 0) {
-    const sumInverseSquare = emptyAreas.reduce(
-      (sum, key) => sum + 1 / Math.pow(influences[key], 2),
-      0
-    );
+  let suggestions = {};
+  if (emptyKeys.length > 0 && remaining > 0) {
+    const usedImpact = usedKeys.reduce((sum, key) => sum + parsedWeights[key] * influences[key], 0);
+    const totalImpact = allKeys.reduce((sum, key) => sum + (weights[key] ? parsedWeights[key] * influences[key] : 0), 0);
+    const distributedImpact = MAX_AXLE_LOAD - parsedWeights.front * influences.front - totalImpact;
+    const totalWeightFactor = emptyKeys.reduce((sum, key) => sum + influences[key] ** 2, 0);
 
-    emptyAreas.forEach((key) => {
-      const ratio = (1 / Math.pow(influences[key], 2)) / sumInverseSquare;
-      recommended[key] = Math.round(ratio * remaining);
+    emptyKeys.forEach((key) => {
+      suggestions[key] = Math.round((influences[key] ** 2 / totalWeightFactor) * distributedImpact / influences[key]);
     });
   }
 
-  const handleChange = (e) => {
+  function handleChange(e) {
     const { name, value } = e.target;
-    setWeights((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+    setWeights({ ...weights, [name]: value });
+  }
 
-  const handleClear = (key) => {
-    setWeights((prev) => ({
-      ...prev,
-      [key]: "",
-    }));
-  };
+  function handleClear(name) {
+    setWeights({ ...weights, [name]: "" });
+  }
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "20px" }}>
       <h2>第2軸 荷重計算ツール</h2>
-
-      {Object.entries(weights).map(([key, val]) => (
-        <div key={key} style={{ marginBottom: "1rem" }}>
-          <label style={{ marginRight: "0.5rem" }}>
-            {key.toUpperCase()}（kg）:
-            <input
-              type="number"
-              name={key}
-              value={val}
-              onChange={handleChange}
-              style={{ marginLeft: "0.5rem", width: "100px" }}
-            />
+      {Object.keys(weights).map((key) => (
+        <div key={key} style={{ marginBottom: "10px" }}>
+          <label style={{ width: "80px", display: "inline-block" }}>
+            {key.toUpperCase()}（kg）：
           </label>
-          <button
-            type="button"
-            onClick={() => handleClear(key)}
-            style={{
-              marginLeft: "0.5rem",
-              backgroundColor: "#eee",
-              border: "1px solid #ccc",
-              cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
+          <input
+            type="number"
+            name={key}
+            value={weights[key]}
+            onChange={handleChange}
+            style={{ width: "100px" }}
+          />
+          <button onClick={() => handleClear(key)} style={{ marginLeft: "5px" }}>✖</button>
         </div>
       ))}
 
-      <p>
-        <strong>現在の第2軸荷重：</strong>
-        {usedLoad.toFixed(0)}kg
-      </p>
-      <p>
-        <strong>あと積める目安：</strong>
-        {remaining.toFixed(0)}kg
-      </p>
+      <p>現在の第2軸荷重：<strong>{usedLoad}kg</strong></p>
+      <p>あと積める目安：<strong>{remaining}kg</strong></p>
 
-      {emptyAreas.length > 0 ? (
+      {emptyKeys.length > 0 && (
         <>
-          <p>
-            👉 <strong>{emptyAreas.join(", ").toUpperCase()}</strong> が未入力です
-          </p>
-          <p>
-            <strong>各エリア別 積載目安（第2軸10t超えない範囲）</strong>
-          </p>
+          <p>👉 <strong>{emptyKeys.map(k => k.toUpperCase()).join(", ")}</strong> が未入力です</p>
+          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            {Object.entries(recommended).map(([key, val]) => (
-              <li key={key}>
-                {key.toUpperCase()}：{val}kg
-              </li>
+            {Object.entries(suggestions).map(([key, val]) => (
+              <li key={key}>{key.toUpperCase()}：{val}kg</li>
             ))}
           </ul>
         </>
-      ) : null}
+      )}
     </div>
   );
 }
