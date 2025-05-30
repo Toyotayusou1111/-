@@ -17,58 +17,60 @@ export default function App() {
 
   const MAX_AXLE_LOAD = 10000;
   const MAX_TOTAL_LOAD = 19700;
+  const MAX_REAR_AXLE = 20000;
 
   const parsedWeights = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedLoad =
+  const usedAxle2 =
     parsedWeights.front * influences.front +
     parsedWeights.mid1 * influences.mid1 +
     parsedWeights.mid2 * influences.mid2 +
     parsedWeights.rear * influences.rear;
 
-  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedLoad);
   const usedTotal =
     parsedWeights.front +
     parsedWeights.mid1 +
     parsedWeights.mid2 +
     parsedWeights.rear;
+
+  const usedAxle3 =
+    parsedWeights.mid2 * influences.mid2 + parsedWeights.rear * influences.rear;
+
+  const remainingAxle2 = Math.max(0, MAX_AXLE_LOAD - usedAxle2);
+  const remainingAxle3 = Math.max(0, MAX_REAR_AXLE - usedAxle3);
   const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
 
   const areas = ["mid1", "mid2", "rear"];
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+  if (emptyAreas.length > 0 && remainingTotal > 0) {
     const ratios = {
-      mid1: 0.211,
-      mid2: 0.323,
-      rear: 0.279,
+      mid1: 0.196,
+      mid2: 0.318,
+      rear: 0.308,
     };
 
     const ratioSum = emptyAreas.reduce((acc, key) => acc + ratios[key], 0);
 
-    // ステップ① 合計19700kg基準で比率割り
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
       rawRecommended[key] = remainingTotal * (ratios[key] / ratioSum);
     });
 
-    // ステップ② 第2軸への影響値計算
     const frontAxle = parsedWeights.front * influences.front;
-    const rawAxle = Object.entries(rawRecommended).reduce(
+    const rawAxle2 = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       frontAxle
     );
+    const rawAxle3 = (rawRecommended.mid2 || 0) * influences.mid2 + (rawRecommended.rear || 0) * influences.rear;
 
-    // ステップ③ 10t超える場合のみスケーリング
-    const scale =
-      rawAxle > MAX_AXLE_LOAD
-        ? (MAX_AXLE_LOAD - frontAxle) / (rawAxle - frontAxle)
-        : 1;
+    const scale2 = (MAX_AXLE_LOAD - frontAxle) / (rawAxle2 - frontAxle);
+    const scale3 = MAX_REAR_AXLE / rawAxle3;
+    const scale = Math.min(scale2, scale3, 1.0);
 
-    // ステップ④ 推奨値として四捨五入して出力
     emptyAreas.forEach((key) => {
       recommended[key] = Math.round(rawRecommended[key] * scale);
     });
@@ -100,11 +102,16 @@ export default function App() {
       ))}
       <div>
         <strong>現在の第2軸荷重：</strong>
-        {Math.round(usedLoad).toLocaleString()}kg
+        {Math.round(usedAxle2).toLocaleString()}kg
+      </div>
+      <div>
+        <strong>現在の第3軸荷重：</strong>
+        {Math.round(usedAxle3).toLocaleString()}kg
       </div>
       <div>
         <strong>あと積める目安：</strong>
-        {Math.round(remainingAxle).toLocaleString()}kg
+        {Math.round(remainingAxle2).toLocaleString()}kg（第2軸） /{" "}
+        {Math.round(remainingAxle3).toLocaleString()}kg（第3軸）
       </div>
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
@@ -114,7 +121,7 @@ export default function App() {
       )}
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
-          <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
+          <strong>各エリア別 積載目安（2軸10t＆3軸20t以内＆合計19700kg）</strong>
           <ul>
             {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
