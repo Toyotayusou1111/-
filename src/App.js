@@ -60,7 +60,7 @@ export default function App() {
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+  if (emptyAreas.length > 0 && usedTotal <= MAX_TOTAL_LOAD) {
     const ratios = {
       中間1: 0.211,
       中間2: 0.323,
@@ -74,7 +74,7 @@ export default function App() {
       rawRecommended[key] = remainingTotal * ((ratios[key] || 0) / ratioSum);
     });
 
-    const frontAxle = parsedWeights.ひな壇 * influences.ひな壇;
+    const frontAxle = (parsedWeights.ひな壇 || 0) * influences.ひな壇;
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       frontAxle
@@ -165,7 +165,7 @@ export default function App() {
       )}
       {Object.keys(recommended).length > 0 && (
         <div style={{ marginTop: "1rem" }}>
-          <strong>目安積載量（全体19700kg配分）：</strong>
+          <strong>目安積載量（全体19700kg配分 & 第2軸10t調整）：</strong>
           <ul>
             {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
