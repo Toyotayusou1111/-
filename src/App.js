@@ -8,6 +8,7 @@ export default function App() {
     後部: "",
   });
 
+  // 第2軸に与える影響係数（仮の値、要確認）
   const influences = {
     ひな壇: 0.6,
     中間1: 0.7,
@@ -43,50 +44,40 @@ export default function App() {
   const recommended = {};
   if (emptyAreas.length > 0 && remainingTotal > 0) {
     const baseRatios = {
-      ひな壇: 0.212,
-      中間1: 0.228,
-      中間2: 0.319,
-      後部: 0.241,
+      ひな壇: 0.202,
+      中間1: 0.205,
+      中間2: 0.326,
+      後部: 0.267,
     };
+
+    const totalRatio = emptyAreas.reduce((sum, key) => sum + baseRatios[key], 0);
 
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = baseRatios[key];
+      rawRecommended[key] = MAX_TOTAL_LOAD * (baseRatios[key] / 1);
     });
 
-    const fixedWeights = Object.fromEntries(
-      Object.entries(parsedWeights).filter(([key]) => !emptyAreas.includes(key))
-    );
-
-    const fixedAxle = Object.entries(fixedWeights).reduce(
+    const currentAxle = Object.entries(parsedWeights).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       0
     );
-    const fixedTotal = Object.values(fixedWeights).reduce((a, b) => a + b, 0);
+    const currentTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
 
-    const remainingWeight = MAX_TOTAL_LOAD - fixedTotal;
-    const remainingRatiosSum = emptyAreas.reduce(
-      (acc, key) => acc + baseRatios[key],
-      0
-    );
-
-    emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(
-        (remainingWeight * baseRatios[key]) / remainingRatiosSum
-      );
-    });
-
-    const fullWeights = { ...fixedWeights, ...recommended };
-    const fullAxleLoad = Object.entries(fullWeights).reduce(
+    const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
-      0
+      currentAxle
     );
-    const scaleToMaxAxle = MAX_AXLE_LOAD / fullAxleLoad;
-    const scaleToMaxTotal = MAX_TOTAL_LOAD / Object.values(fullWeights).reduce((a, b) => a + b, 0);
-    const finalScale = Math.min(scaleToMaxAxle, scaleToMaxTotal);
+    const rawTotal = Object.values(rawRecommended).reduce(
+      (a, b) => a + b,
+      currentTotal
+    );
+
+    const scaleAxle = MAX_AXLE_LOAD / rawAxle;
+    const scaleTotal = MAX_TOTAL_LOAD / rawTotal;
+    const scale = Math.min(scaleAxle, scaleTotal);
 
     emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(recommended[key] * finalScale);
+      recommended[key] = Math.floor(rawRecommended[key] * scale);
     });
   }
 
