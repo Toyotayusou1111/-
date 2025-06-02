@@ -3,15 +3,15 @@ import React, { useState } from "react";
 export default function App() {
   const [weights, setWeights] = useState({
     ひな壇: "",
-    中間①: "",
-    中間②: "",
+    中間1: "",
+    中間2: "",
     後部: "",
   });
 
   const influences = {
-    ひな壇: 0.1,
-    中間①: 0.25,
-    中間②: 0.45,
+    ひな壇: 0.6,
+    中間1: 0.7,
+    中間2: 0.3,
     後部: 0.2,
   };
 
@@ -22,52 +22,51 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedLoad =
-    parsedWeights.ひな壇 * influences.ひな壇 +
-    parsedWeights.中間① * influences.中間① +
-    parsedWeights.中間② * influences.中間② +
-    parsedWeights.後部 * influences.後部;
+  const usedAxleLoad =
+    parsedWeights["ひな壇"] * influences["ひな壇"] +
+    parsedWeights["中間1"] * influences["中間1"] +
+    parsedWeights["中間2"] * influences["中間2"] +
+    parsedWeights["後部"] * influences["後部"];
 
-  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedLoad);
+  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
   const usedTotal =
-    parsedWeights.ひな壇 +
-    parsedWeights.中間① +
-    parsedWeights.中間② +
-    parsedWeights.後部;
+    parsedWeights["ひな壇"] +
+    parsedWeights["中間1"] +
+    parsedWeights["中間2"] +
+    parsedWeights["後部"];
   const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
 
-  const areas = ["中間①", "中間②", "後部"];
+  const areas = ["ひな壇", "中間1", "中間2", "後部"];
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
   if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
-    const ratios = {
-      ひな壇: 0.178,
-      中間①: 0.242,
-      中間②: 0.334,
-      後部: 0.246,
+    // 比率を影響係数に合わせてスケーリング
+    const baseRatios = {
+      ひな壇: 0.212,
+      中間1: 0.228,
+      中間2: 0.319,
+      後部: 0.241,
     };
 
-    const filled = areas.filter((key) => weights[key]);
-    let filledSum = filled.reduce((sum, key) => sum + ratios[key], 0);
-    let remainingRatio = 1 - filledSum - (weights.ひな壇 ? ratios.ひな壇 : 0);
-    let ratioSum = emptyAreas.reduce((sum, key) => sum + ratios[key], 0);
+    const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
 
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = remainingTotal * (ratios[key] / ratioSum);
+      rawRecommended[key] = remainingTotal * (baseRatios[key] / ratioSum);
     });
 
-    const fixedLoad =
-      (weights.ひな壇 ? parsedWeights.ひな壇 * influences.ひな壇 : 0) +
-      (weights.中間① ? parsedWeights.中間① * influences.中間① : 0);
-    const rawAxle =
-      Object.entries(rawRecommended).reduce(
-        (acc, [key, val]) => acc + val * influences[key],
-        fixedLoad
-      );
+    const currentAxle = Object.entries(weights).reduce(
+      (acc, [key, val]) => acc + (parseFloat(val) || 0) * influences[key],
+      0
+    );
+    const rawAxle = Object.entries(rawRecommended).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
+      currentAxle
+    );
 
-    const scale = (MAX_AXLE_LOAD - fixedLoad) / (rawAxle - fixedLoad);
+    const scale = (MAX_AXLE_LOAD - currentAxle) / (rawAxle - currentAxle);
+
     emptyAreas.forEach((key) => {
       recommended[key] = Math.round(rawRecommended[key] * scale);
     });
@@ -75,12 +74,9 @@ export default function App() {
 
   const handleKeyDown = (e, key) => {
     if (e.key === "Enter") {
-      const keys = Object.keys(weights);
-      const currentIndex = keys.indexOf(key);
-      const nextKey = keys[currentIndex + 1];
-      if (nextKey) {
-        const nextInput = document.getElementById(nextKey);
-        if (nextInput) nextInput.focus();
+      const index = areas.indexOf(key);
+      if (index >= 0 && index < areas.length - 1) {
+        document.getElementById(areas[index + 1]).focus();
       }
     }
   };
@@ -88,7 +84,7 @@ export default function App() {
   return (
     <div style={{ padding: "2rem" }}>
       <h2>第2軸 荷重計算ツール（19700kg分配）</h2>
-      {Object.keys(weights).map((key) => (
+      {areas.map((key) => (
         <div key={key} style={{ marginBottom: "1rem" }}>
           <label>
             {key}（kg）：
@@ -113,7 +109,7 @@ export default function App() {
       ))}
       <div>
         <strong>現在の第2軸荷重：</strong>
-        {Math.round(usedLoad).toLocaleString()}kg
+        {Math.round(usedAxleLoad).toLocaleString()}kg
       </div>
       <div>
         <strong>現在の総積載量：</strong>
