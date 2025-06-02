@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function App() {
   const [weights, setWeights] = useState({
@@ -82,6 +83,18 @@ export default function App() {
     }
   };
 
+  const data = areas.map((area) => ({
+    name: area,
+    重量: parsedWeights[area],
+  }));
+
+  const diagnosis =
+    usedLoad > MAX_AXLE_LOAD
+      ? "⚠ 第2軸が過積載です。荷重を調整してください。"
+      : usedLoad >= 9500
+      ? "◎ 第2軸荷重は適正範囲内です。"
+      : "△ 第2軸荷重がやや不足しています。バランスに注意。";
+
   return (
     <div style={{ padding: "2rem" }}>
       <h2>第2軸 荷重計算ツール</h2>
@@ -113,8 +126,28 @@ export default function App() {
         {Math.round(usedLoad).toLocaleString()}kg
       </div>
       <div>
+        <strong>現在の総積載量：</strong>
+        {Math.round(usedTotal).toLocaleString()}kg
+      </div>
+      <div>
         <strong>あと積める目安：</strong>
         {Math.round(remainingAxle).toLocaleString()}kg（第2軸）
+      </div>
+      <div style={{ marginTop: "1rem" }}>
+        <strong>診断コメント：</strong>
+        <span style={{ color: usedLoad > MAX_AXLE_LOAD ? "red" : usedLoad >= 9500 ? "green" : "orange" }}>
+          {diagnosis}
+        </span>
+      </div>
+      <div style={{ width: "100%", height: 300, marginTop: "2rem" }}>
+        <ResponsiveContainer>
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="重量" fill="#8884d8" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
