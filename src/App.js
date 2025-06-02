@@ -2,75 +2,84 @@ import React, { useState } from "react";
 
 export default function App() {
   const [weights, setWeights] = useState({
-    hinadan: "",
-    chukan1: "",
-    chukan2: "",
-    koubu: "",
+    ひな壇: "",
+    中間①: "",
+    中間②: "",
+    後部: "",
   });
 
   const influences = {
-    hinadan: 0.5,
-    chukan1: 0.5,
-    chukan2: 0.45,
-    koubu: 0.3,
+    ひな壇: 0.1,
+    中間①: 0.25,
+    中間②: 0.45,
+    後部: 0.2,
   };
 
   const MAX_AXLE_LOAD = 10000;
   const MAX_TOTAL_LOAD = 19700;
 
-  const ratios = {
-    chukan1: 0.269,
-    chukan2: 0.373,
-    koubu: 0.276,
-  };
-
   const parsedWeights = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedAxleLoad =
-    parsedWeights.hinadan * influences.hinadan +
-    parsedWeights.chukan1 * influences.chukan1 +
-    parsedWeights.chukan2 * influences.chukan2 +
-    parsedWeights.koubu * influences.koubu;
+  const usedLoad =
+    parsedWeights.ひな壇 * influences.ひな壇 +
+    parsedWeights.中間① * influences.中間① +
+    parsedWeights.中間② * influences.中間② +
+    parsedWeights.後部 * influences.後部;
 
-  const usedTotalLoad =
-    parsedWeights.hinadan +
-    parsedWeights.chukan1 +
-    parsedWeights.chukan2 +
-    parsedWeights.koubu;
+  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedLoad);
+  const usedTotal =
+    parsedWeights.ひな壇 +
+    parsedWeights.中間① +
+    parsedWeights.中間② +
+    parsedWeights.後部;
+  const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
 
-  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
-  const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotalLoad);
-
-  const emptyAreas = ["chukan1", "chukan2", "koubu"].filter(
-    (key) => !weights[key]
-  );
+  const areas = ["中間①", "中間②", "後部"];
+  const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingTotal > 0) {
-    const activeRatios = Object.fromEntries(
-      emptyAreas.map((key) => [key, ratios[key]])
-    );
+  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+    const ratios = {
+      ひな壇: 0.178,
+      中間①: 0.242,
+      中間②: 0.334,
+      後部: 0.246,
+    };
 
-    const ratioSum = Object.values(activeRatios).reduce(
-      (acc, val) => acc + val,
-      0
-    );
+    const filled = areas.filter((key) => weights[key]);
+    let filledSum = filled.reduce((sum, key) => sum + ratios[key], 0);
+    let remainingRatio = 1 - filledSum - (weights.ひな壇 ? ratios.ひな壇 : 0);
+    let ratioSum = emptyAreas.reduce((sum, key) => sum + ratios[key], 0);
 
+    const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(
-        remainingTotal * (ratios[key] / ratioSum)
+      rawRecommended[key] = remainingTotal * (ratios[key] / ratioSum);
+    });
+
+    const fixedLoad =
+      (weights.ひな壇 ? parsedWeights.ひな壇 * influences.ひな壇 : 0) +
+      (weights.中間① ? parsedWeights.中間① * influences.中間① : 0);
+    const rawAxle =
+      Object.entries(rawRecommended).reduce(
+        (acc, [key, val]) => acc + val * influences[key],
+        fixedLoad
       );
+
+    const scale = (MAX_AXLE_LOAD - fixedLoad) / (rawAxle - fixedLoad);
+    emptyAreas.forEach((key) => {
+      recommended[key] = Math.round(rawRecommended[key] * scale);
     });
   }
 
   const handleKeyDown = (e, key) => {
     if (e.key === "Enter") {
-      const keys = ["hinadan", "chukan1", "chukan2", "koubu"];
-      const idx = keys.indexOf(key);
-      if (idx !== -1 && idx < keys.length - 1) {
-        const nextInput = document.getElementById(keys[idx + 1]);
+      const keys = Object.keys(weights);
+      const currentIndex = keys.indexOf(key);
+      const nextKey = keys[currentIndex + 1];
+      if (nextKey) {
+        const nextInput = document.getElementById(nextKey);
         if (nextInput) nextInput.focus();
       }
     }
@@ -79,22 +88,17 @@ export default function App() {
   return (
     <div style={{ padding: "2rem" }}>
       <h2>第2軸 荷重計算ツール（19700kg分配）</h2>
-      {Object.entries(weights).map(([key, val]) => (
+      {Object.keys(weights).map((key) => (
         <div key={key} style={{ marginBottom: "1rem" }}>
           <label>
-            {key === "hinadan"
-              ? "ひな壇"
-              : key === "chukan1"
-              ? "中間①"
-              : key === "chukan2"
-              ? "中間②"
-              : "後部"}
-            （kg）：
+            {key}（kg）：
             <input
               id={key}
               type="number"
-              value={val}
-              onChange={(e) => setWeights({ ...weights, [key]: e.target.value })}
+              value={weights[key]}
+              onChange={(e) =>
+                setWeights({ ...weights, [key]: e.target.value })
+              }
               onKeyDown={(e) => handleKeyDown(e, key)}
               style={{ marginLeft: "0.5rem" }}
             />
@@ -107,43 +111,30 @@ export default function App() {
           </label>
         </div>
       ))}
-
       <div>
         <strong>現在の第2軸荷重：</strong>
-        {Math.round(usedAxleLoad).toLocaleString()}kg
+        {Math.round(usedLoad).toLocaleString()}kg
       </div>
       <div>
         <strong>現在の総積載量：</strong>
-        {Math.round(usedTotalLoad).toLocaleString()}kg
+        {Math.round(usedTotal).toLocaleString()}kg
       </div>
       <div>
         <strong>あと積める目安：</strong>
         {Math.round(remainingAxle).toLocaleString()}kg（第2軸）
       </div>
-
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
-          👉 <strong>{emptyAreas.map((e) => {
-            if (e === "chukan1") return "中間①";
-            if (e === "chukan2") return "中間②";
-            return "後部";
-          }).join("、")}</strong>
-          が未入力です
+          👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
         </div>
       )}
-
-      {emptyAreas.length > 0 && (
+      {Object.keys(recommended).length > 0 && (
         <div style={{ marginTop: "1rem" }}>
           <strong>目安積載量（全体19700kg配分）：</strong>
           <ul>
             {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
-                {key === "chukan1"
-                  ? "中間①"
-                  : key === "chukan2"
-                  ? "中間②"
-                  : "後部"}
-                ：{val.toLocaleString()}kg
+                {key}：{val.toLocaleString()}kg
               </li>
             ))}
           </ul>
