@@ -51,36 +51,34 @@ export default function App() {
 
     const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
 
-    const totalKnown = areas.reduce(
-      (sum, area) => sum + (weights[area] ? parsedWeights[area] : 0),
-      0
-    );
-    const axleKnown = areas.reduce(
-      (sum, area) => sum + (weights[area] ? parsedWeights[area] * influences[area] : 0),
-      0
-    );
-
-    const remainingTotalDynamic = MAX_TOTAL_LOAD - totalKnown;
-    const remainingAxleDynamic = MAX_AXLE_LOAD - axleKnown;
-
-    let rawRecommended = {};
+    const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = baseRatios[key] * remainingTotalDynamic / ratioSum;
+      rawRecommended[key] = MAX_TOTAL_LOAD * (baseRatios[key] / 1);
     });
+
+    const currentAxle = Object.entries(parsedWeights).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
+      0
+    );
+    const currentTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
 
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
-      axleKnown
+      currentAxle
     );
-
-    const rawTotal = Object.values(rawRecommended).reduce((a, b) => a + b, totalKnown);
+    const rawTotal = Object.values(rawRecommended).reduce(
+      (a, b) => a + b,
+      currentTotal
+    );
 
     const scaleAxle = MAX_AXLE_LOAD / rawAxle;
     const scaleTotal = MAX_TOTAL_LOAD / rawTotal;
     const scale = Math.min(scaleAxle, scaleTotal);
 
+    // 修正：限りなく10tに近づけるため、2軸荷重を最大化するスケーリング
+    const scaleToMaxAxle = MAX_AXLE_LOAD / rawAxle;
     emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(rawRecommended[key] * scale);
+      recommended[key] = Math.round(rawRecommended[key] * scaleToMaxAxle);
     });
   }
 
