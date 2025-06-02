@@ -8,47 +8,62 @@ const \[weights, setWeights] = useState({
 後部: "",
 });
 
-// 新しい影響係数（第2軸／第3軸）
-const influence2 = { ひな壇: 0.6, 中間①: 0.8, 中間②: 0.5, 後部: 0.2 };
-const influence3 = { ひな壇: 0.0, 中間①: 0.1, 中間②: 0.5, 後部: 0.9 };
+const influences = {
+ひな壇: 0.6,
+中間①: 0.8,
+中間②: 0.5,
+後部: 0.2,
+};
 
-const MAX\_TOTAL = 19700;
-const MAX\_AXLE2 = 10000;
-const MAX\_AXLE3 = 20000;
+const influences3rd = {
+中間②: 0.6,
+後部: 0.4,
+};
 
-const parsed = Object.fromEntries(
-Object.entries(weights).map((\[k, v]) => \[k, parseFloat(v) || 0])
+const MAX\_AXLE\_2 = 10000;
+const MAX\_AXLE\_3 = 20000;
+const MAX\_TOTAL\_LOAD = 19700;
+
+const parsedWeights = Object.fromEntries(
+Object.entries(weights).map((\[key, val]) => \[key, parseFloat(val) || 0])
 );
 
-const axle2 =
-parsed.ひな壇 \* influence2.ひな壇 +
-parsed.中間① \* influence2.中間① +
-parsed.中間② \* influence2.中間② +
-parsed.後部 \* influence2.後部;
+const usedAxle2 =
+parsedWeights.ひな壇 \* influences.ひな壇 +
+parsedWeights.中間① \* influences.中間① +
+parsedWeights.中間② \* influences.中間② +
+parsedWeights.後部 \* influences.後部;
 
-const axle3 =
-parsed.ひな壇 \* influence3.ひな壇 +
-parsed.中間① \* influence3.中間① +
-parsed.中間② \* influence3.中間② +
-parsed.後部 \* influence3.後部;
+const usedAxle3 =
+parsedWeights.中間② \* influences3rd.中間② +
+parsedWeights.後部 \* influences3rd.後部;
 
-const total = parsed.ひな壇 + parsed.中間① + parsed.中間② + parsed.後部;
+const usedTotal = Object.values(parsedWeights).reduce(
+(acc, val) => acc + val,
+0
+);
 
-const remain2 = Math.max(0, MAX\_AXLE2 - axle2);
-const remain3 = Math.max(0, MAX\_AXLE3 - axle3);
-const remainTotal = Math.max(0, MAX\_TOTAL - total);
+const remaining2 = Math.max(0, MAX\_AXLE\_2 - usedAxle2);
+const remaining3 = Math.max(0, MAX\_AXLE\_3 - usedAxle3);
+const remainingTotal = Math.max(0, MAX\_TOTAL\_LOAD - usedTotal);
 
-const allAreas = \["中間②", "後部"];
-const empty = allAreas.filter((key) => !weights\[key]);
+const areas = \["中間①", "中間②", "後部"];
+const emptyAreas = areas.filter((area) => !weights\[area]);
+
 const recommended = {};
-
-if (empty.length > 0 && remainTotal > 0) {
-const ratios = { 中間②: 0.601, 後部: 0.399 }; // 11852 / 19700 ≒ 0.601
-const ratioSum = empty.reduce((acc, key) => acc + ratios\[key], 0);
+if (emptyAreas.length > 0 && remainingTotal > 0) {
+const ratios = {
+中間①: 0.229,
+中間②: 0.292,
+後部: 0.276,
+};
 
 ```
-empty.forEach((key) => {
-  recommended[key] = Math.round((remainTotal * ratios[key]) / ratioSum);
+const ratioSum = emptyAreas.reduce((acc, key) => acc + ratios[key], 0);
+emptyAreas.forEach((key) => {
+  recommended[key] = Math.round(
+    (MAX_TOTAL_LOAD * ratios[key]) / ratioSum
+  );
 });
 ```
 
@@ -62,7 +77,9 @@ return (
 \<input
 type="number"
 value={weights\[key]}
-onChange={(e) => setWeights({ ...weights, \[key]: e.target.value })}
+onChange={(e) =>
+setWeights({ ...weights, \[key]: e.target.value })
+}
 style={{ marginLeft: "0.5rem" }}
 />
 \<button
@@ -70,42 +87,22 @@ onClick={() => setWeights({ ...weights, \[key]: "" })}
 style={{ marginLeft: "0.5rem" }}
 \>
 ✖ </button> </label> </div>
-))}
-
-```
-  <div>
-    <strong>現在の第2軸荷重：</strong>
-    {Math.round(axle2).toLocaleString()}kg
-  </div>
-  <div>
-    <strong>現在の第3軸荷重：</strong>
-    {Math.round(axle3).toLocaleString()}kg
-  </div>
-  <div>
-    <strong>あと積める目安：</strong>
-    {Math.round(remain2).toLocaleString()}kg（第2軸） ／ {Math.round(
-      remain3
-    ).toLocaleString()}kg（第3軸）
-  </div>
-
-  {empty.length > 0 && (
-    <div style={{ marginTop: "1rem" }}>
-      👉 <strong>{empty.join("、")}</strong> が未入力です
-    </div>
-  )}
-
-  {empty.length > 0 && (
-    <div style={{ marginTop: "1rem" }}>
-      <strong>目安積載量（全体19700kg配分）：</strong>
-      <ul>
-        {Object.entries(recommended).map(([k, v]) => (
-          <li key={k}>{k}：{v.toLocaleString()}kg</li>
-        ))}
-      </ul>
-    </div>
-  )}
-</div>
-```
-
+))} <div> <strong>現在の第2軸荷重：</strong>
+{Math.round(usedAxle2).toLocaleString()}kg </div> <div> <strong>現在の第3軸荷重：</strong>
+{Math.round(usedAxle3).toLocaleString()}kg </div> <div> <strong>あと積める目安：</strong>
+{Math.round(remaining2).toLocaleString()}kg（第2軸） ／ {Math.round(
+remaining3
+).toLocaleString()}kg（第3軸） </div>
+{emptyAreas.length > 0 && (
+\<div style={{ marginTop: "1rem" }}>
+👉 <strong>{emptyAreas.join(", ")}</strong>
+が未入力です </div>
+)}
+{emptyAreas.length > 0 && (
+\<div style={{ marginTop: "1rem" }}> <strong>目安積載量（全体19700kg配分）：</strong> <ul>
+{Object.entries(recommended).map((\[key, val]) => ( <li key={key}>
+{key}：{val.toLocaleString()}kg </li>
+))} </ul> </div>
+)} </div>
 );
 }
