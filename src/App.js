@@ -28,20 +28,20 @@ export default function App() {
     parsedWeights["中間2"] * influences["中間2"] +
     parsedWeights["後部"] * influences["後部"];
 
-  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
   const usedTotal =
     parsedWeights["ひな壇"] +
     parsedWeights["中間1"] +
     parsedWeights["中間2"] +
     parsedWeights["後部"];
+
+  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
   const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
 
   const areas = ["ひな壇", "中間1", "中間2", "後部"];
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
-    // 比率を影響係数に合わせてスケーリング
+  if (emptyAreas.length > 0 && remainingTotal > 0) {
     const baseRatios = {
       ひな壇: 0.212,
       中間1: 0.228,
@@ -53,19 +53,24 @@ export default function App() {
 
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = remainingTotal * (baseRatios[key] / ratioSum);
+      rawRecommended[key] = MAX_TOTAL_LOAD * (baseRatios[key] / 1);
     });
 
-    const currentAxle = Object.entries(weights).reduce(
-      (acc, [key, val]) => acc + (parseFloat(val) || 0) * influences[key],
+    const currentAxle = Object.entries(parsedWeights).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
       0
     );
+    const currentTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
+
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       currentAxle
     );
+    const rawTotal = Object.values(rawRecommended).reduce((a, b) => a + b, currentTotal);
 
-    const scale = (MAX_AXLE_LOAD - currentAxle) / (rawAxle - currentAxle);
+    const scaleAxle = MAX_AXLE_LOAD / rawAxle;
+    const scaleTotal = MAX_TOTAL_LOAD / rawTotal;
+    const scale = Math.min(scaleAxle, scaleTotal);
 
     emptyAreas.forEach((key) => {
       recommended[key] = Math.round(rawRecommended[key] * scale);
