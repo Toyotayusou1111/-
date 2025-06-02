@@ -139,7 +139,7 @@ export default function App() {
           {diagnosis}
         </span>
       </div>
-      <div style={{ width: "100%", height: 300, marginTop: "2rem" }}>
+      <div style={{ width: "100%", height: 300, marginTop: "2rem", backgroundColor: "#f8f8f8" }}>
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
             <XAxis dataKey="name" />
