@@ -22,17 +22,12 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedAxleLoad =
-    parsedWeights["ひな壇"] * influences["ひな壇"] +
-    parsedWeights["中間1"] * influences["中間1"] +
-    parsedWeights["中間2"] * influences["中間2"] +
-    parsedWeights["後部"] * influences["後部"];
+  const usedAxleLoad = Object.entries(parsedWeights).reduce(
+    (sum, [key, val]) => sum + val * influences[key],
+    0
+  );
 
-  const usedTotal =
-    parsedWeights["ひな壇"] +
-    parsedWeights["中間1"] +
-    parsedWeights["中間2"] +
-    parsedWeights["後部"];
+  const usedTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
 
   const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
   const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
@@ -49,36 +44,38 @@ export default function App() {
       後部: 0.241,
     };
 
-    const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
-
-    const rawRecommended = {};
-    emptyAreas.forEach((key) => {
-      rawRecommended[key] = MAX_TOTAL_LOAD * (baseRatios[key] / 1);
-    });
-
-    const currentAxle = Object.entries(parsedWeights).reduce(
+    const fixedTotal = Object.entries(parsedWeights).reduce(
+      (acc, [key, val]) => acc + val,
+      0
+    );
+    const fixedAxle = Object.entries(parsedWeights).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       0
     );
-    const currentTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
 
-    const rawAxle = Object.entries(rawRecommended).reduce(
-      (acc, [key, val]) => acc + val * influences[key],
-      currentAxle
-    );
-    const rawTotal = Object.values(rawRecommended).reduce(
-      (a, b) => a + b,
-      currentTotal
-    );
+    const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
 
-    const scaleAxle = MAX_AXLE_LOAD / rawAxle;
-    const scaleTotal = MAX_TOTAL_LOAD / rawTotal;
-    const scale = Math.min(scaleAxle, scaleTotal);
-
-    // 修正：限りなく10tに近づけるため、2軸荷重を最大化するスケーリング
-    const scaleToMaxAxle = MAX_AXLE_LOAD / rawAxle;
+    // 仮の配分（比率で割り当て）
+    const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(rawRecommended[key] * scaleToMaxAxle);
+      rawRecommended[key] = baseRatios[key];
+    });
+
+    // スケーリング調整
+    const totalScale = (MAX_TOTAL_LOAD - fixedTotal) / emptyAreas.reduce((sum, key) => sum + rawRecommended[key], 0);
+    emptyAreas.forEach((key) => {
+      rawRecommended[key] = rawRecommended[key] * totalScale;
+    });
+
+    // 2軸荷重を最大10tに近づけるよう再スケール（2軸超過しない範囲で最大限）
+    const axleRaw = Object.entries(rawRecommended).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
+      fixedAxle
+    );
+    const axleScale = Math.min(1, MAX_AXLE_LOAD / axleRaw);
+
+    emptyAreas.forEach((key) => {
+      recommended[key] = Math.floor(rawRecommended[key] * axleScale);
     });
   }
 
