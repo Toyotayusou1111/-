@@ -2,157 +2,96 @@ import React, { useState } from "react";
 
 export default function App() {
   const [weights, setWeights] = useState({
-    ひな壇: "",
-    中間1: "",
-    中間2: "",
-    後部: "",
+    front: "",
+    mid1: "",
+    mid2: "",
+    rear: "",
   });
 
   const influences = {
-    ひな壇: 0.6,
-    中間1: 0.7,
-    中間2: 0.3,
-    後部: 0.2,
+    front: 0.6,
+    mid1: 0.8,
+    mid2: 0.5,
+    rear: 0.2,
   };
 
   const MAX_AXLE_LOAD = 10000;
-  const MAX_TOTAL_LOAD = 19700;
 
   const parsedWeights = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedAxleLoad =
-    parsedWeights["ひな壇"] * influences["ひな壇"] +
-    parsedWeights["中間1"] * influences["中間1"] +
-    parsedWeights["中間2"] * influences["中間2"] +
-    parsedWeights["後部"] * influences["後部"];
+  const usedLoad =
+    parsedWeights.front * influences.front +
+    parsedWeights.mid1 * influences.mid1 +
+    parsedWeights.mid2 * influences.mid2 +
+    parsedWeights.rear * influences.rear;
 
-  const usedTotal =
-    parsedWeights["ひな壇"] +
-    parsedWeights["中間1"] +
-    parsedWeights["中間2"] +
-    parsedWeights["後部"];
+  const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
 
-  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
-  const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
-
-  const areas = ["ひな壇", "中間1", "中間2", "後部"];
-  const emptyAreas = areas.filter((area) => !weights[area]);
+  const allKeys = ["mid1", "mid2", "rear"];
+  const emptyKeys = allKeys.filter((k) => !weights[k]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingTotal > 0) {
-    const baseRatios = {
-      ひな壇: 0.212,
-      中間1: 0.228,
-      中間2: 0.319,
-      後部: 0.241,
-    };
+  if (emptyKeys.length > 0 && remaining > 0) {
+    const denom = emptyKeys
+      .map((k) => Math.pow(influences[k], 2))
+      .reduce((a, b) => a + b, 0);
 
-    const rawRecommended = {};
-    emptyAreas.forEach((key) => {
-      rawRecommended[key] = baseRatios[key];
-    });
-
-    const fixedWeights = Object.fromEntries(
-      Object.entries(parsedWeights).filter(([key]) => !emptyAreas.includes(key))
-    );
-
-    const fixedAxle = Object.entries(fixedWeights).reduce(
-      (acc, [key, val]) => acc + val * influences[key],
-      0
-    );
-    const fixedTotal = Object.values(fixedWeights).reduce((a, b) => a + b, 0);
-
-    const remainingWeight = MAX_TOTAL_LOAD - fixedTotal;
-    const remainingRatiosSum = emptyAreas.reduce(
-      (acc, key) => acc + baseRatios[key],
-      0
-    );
-
-    emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(
-        (remainingWeight * baseRatios[key]) / remainingRatiosSum
-      );
-    });
-
-    const fullWeights = { ...fixedWeights, ...recommended };
-    const fullAxleLoad = Object.entries(fullWeights).reduce(
-      (acc, [key, val]) => acc + val * influences[key],
-      0
-    );
-    const scaleToMaxAxle = MAX_AXLE_LOAD / fullAxleLoad;
-    const scaleToMaxTotal = MAX_TOTAL_LOAD / Object.values(fullWeights).reduce((a, b) => a + b, 0);
-    const finalScale = Math.min(scaleToMaxAxle, scaleToMaxTotal);
-
-    emptyAreas.forEach((key) => {
-      recommended[key] = Math.round(recommended[key] * finalScale);
+    emptyKeys.forEach((k) => {
+      const val =
+        (Math.pow(influences[k], 2) * remaining) /
+        (influences[k] * denom);
+      recommended[k] = Math.round(val);
     });
   }
 
-  const handleKeyDown = (e, key) => {
-    if (e.key === "Enter") {
-      const index = areas.indexOf(key);
-      if (index >= 0 && index < areas.length - 1) {
-        document.getElementById(areas[index + 1]).focus();
-      }
-    }
-  };
-
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>第2軸 荷重計算ツール（19700kg分配）</h2>
-      {areas.map((key) => (
-        <div key={key} style={{ marginBottom: "1rem" }}>
+    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
+      <h2>第2軸 荷重計算ツール</h2>
+
+      {["front", "mid1", "mid2", "rear"].map((key) => (
+        <div key={key} style={{ marginBottom: 10 }}>
           <label>
-            {key}（kg）：
+            {key.toUpperCase()}（kg）：
             <input
-              id={key}
               type="number"
               value={weights[key]}
               onChange={(e) =>
                 setWeights({ ...weights, [key]: e.target.value })
               }
-              onKeyDown={(e) => handleKeyDown(e, key)}
-              style={{ marginLeft: "0.5rem" }}
+              style={{ marginLeft: 10 }}
+              placeholder="kg単位で入力"
             />
-            <button
-              onClick={() => setWeights({ ...weights, [key]: "" })}
-              style={{ marginLeft: "0.5rem" }}
-            >
-              ✖
-            </button>
           </label>
         </div>
       ))}
-      <div>
+
+      <hr />
+      <p>
         <strong>現在の第2軸荷重：</strong>
-        {Math.round(usedAxleLoad).toLocaleString()}kg
-      </div>
-      <div>
-        <strong>現在の総積載量：</strong>
-        {Math.round(usedTotal).toLocaleString()}kg
-      </div>
-      <div>
+        {usedLoad.toFixed(0)}kg
+      </p>
+      <p>
         <strong>あと積める目安：</strong>
-        {Math.round(remainingAxle).toLocaleString()}kg（第2軸）
-      </div>
-      {emptyAreas.length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
-          👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
-        </div>
-      )}
-      {Object.keys(recommended).length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
-          <strong>目安積載量（全体19700kg配分）：</strong>
+        {remaining.toFixed(0)}kg
+      </p>
+
+      {emptyKeys.length > 0 && remaining > 0 ? (
+        <>
+          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
           <ul>
-            {Object.entries(recommended).map(([key, val]) => (
+            {emptyKeys.map((key) => (
               <li key={key}>
-                {key}：{val.toLocaleString()}kg
+                {key.toUpperCase()}：{recommended[key]}kg
               </li>
             ))}
           </ul>
-        </div>
+        </>
+      ) : (
+        <p style={{ color: "gray" }}>
+          👉 {emptyKeys.join(", ").toUpperCase()} が未入力です
+        </p>
       )}
     </div>
   );
