@@ -51,23 +51,32 @@ export default function App() {
 
     const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
 
-    const rawRecommended = {};
-    emptyAreas.forEach((key) => {
-      rawRecommended[key] = (MAX_TOTAL_LOAD - usedTotal) * (baseRatios[key] / ratioSum);
-    });
-
-    const currentAxle = Object.entries(parsedWeights).reduce(
-      (acc, [key, val]) => acc + val * influences[key],
+    const totalKnown = areas.reduce(
+      (sum, area) => sum + (weights[area] ? parsedWeights[area] : 0),
+      0
+    );
+    const axleKnown = areas.reduce(
+      (sum, area) => sum + (weights[area] ? parsedWeights[area] * influences[area] : 0),
       0
     );
 
+    const remainingTotalDynamic = MAX_TOTAL_LOAD - totalKnown;
+    const remainingAxleDynamic = MAX_AXLE_LOAD - axleKnown;
+
+    let rawRecommended = {};
+    emptyAreas.forEach((key) => {
+      rawRecommended[key] = baseRatios[key] * remainingTotalDynamic / ratioSum;
+    });
+
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
-      currentAxle
+      axleKnown
     );
 
+    const rawTotal = Object.values(rawRecommended).reduce((a, b) => a + b, totalKnown);
+
     const scaleAxle = MAX_AXLE_LOAD / rawAxle;
-    const scaleTotal = MAX_TOTAL_LOAD / (usedTotal + Object.values(rawRecommended).reduce((a, b) => a + b, 0));
+    const scaleTotal = MAX_TOTAL_LOAD / rawTotal;
     const scale = Math.min(scaleAxle, scaleTotal);
 
     emptyAreas.forEach((key) => {
