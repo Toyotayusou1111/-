@@ -16,6 +16,7 @@ export default function App() {
   };
 
   const MAX_AXLE_LOAD = 10000;
+  const MAX_TOTAL_LOAD = 19700;
 
   const parsedWeights = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
@@ -27,31 +28,57 @@ export default function App() {
     parsedWeights.mid2 * influences.mid2 +
     parsedWeights.rear * influences.rear;
 
-  const remaining = Math.max(0, MAX_AXLE_LOAD - usedLoad);
+  const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedLoad);
+  const usedTotal =
+    parsedWeights.front +
+    parsedWeights.mid1 +
+    parsedWeights.mid2 +
+    parsedWeights.rear;
+  const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
 
-  const allKeys = ["mid1", "mid2", "rear"];
-  const emptyKeys = allKeys.filter((k) => !weights[k]);
+  const areas = ["mid1", "mid2", "rear"];
+  const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyKeys.length > 0 && remaining > 0) {
-    const denom = emptyKeys
-      .map((k) => Math.pow(influences[k], 2))
-      .reduce((a, b) => a + b, 0);
+  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+    const ratios = {
+      mid1: 0.211,
+      mid2: 0.323,
+      rear: 0.279,
+    };
 
-    emptyKeys.forEach((k) => {
-      const val =
-        (Math.pow(influences[k], 2) * remaining) /
-        (influences[k] * denom);
-      recommended[k] = Math.round(val);
+    const ratioSum = emptyAreas.reduce((acc, key) => acc + ratios[key], 0);
+
+    // ステップ① 合計19700kg基準で比率割り
+    const rawRecommended = {};
+    emptyAreas.forEach((key) => {
+      rawRecommended[key] = remainingTotal * (ratios[key] / ratioSum);
+    });
+
+    // ステップ② 第2軸への影響値計算
+    const frontAxle = parsedWeights.front * influences.front;
+    const rawAxle = Object.entries(rawRecommended).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
+      frontAxle
+    );
+
+    // ステップ③ 10t超える場合のみスケーリング
+    const scale =
+      rawAxle > MAX_AXLE_LOAD
+        ? (MAX_AXLE_LOAD - frontAxle) / (rawAxle - frontAxle)
+        : 1;
+
+    // ステップ④ 推奨値として四捨五入して出力
+    emptyAreas.forEach((key) => {
+      recommended[key] = Math.round(rawRecommended[key] * scale);
     });
   }
 
   return (
-    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "2rem" }}>
       <h2>第2軸 荷重計算ツール</h2>
-
-      {["front", "mid1", "mid2", "rear"].map((key) => (
-        <div key={key} style={{ marginBottom: 10 }}>
+      {Object.keys(weights).map((key) => (
+        <div key={key} style={{ marginBottom: "1rem" }}>
           <label>
             {key.toUpperCase()}（kg）：
             <input
@@ -60,38 +87,42 @@ export default function App() {
               onChange={(e) =>
                 setWeights({ ...weights, [key]: e.target.value })
               }
-              style={{ marginLeft: 10 }}
-              placeholder="kg単位で入力"
+              style={{ marginLeft: "0.5rem" }}
             />
+            <button
+              onClick={() => setWeights({ ...weights, [key]: "" })}
+              style={{ marginLeft: "0.5rem" }}
+            >
+              ✖
+            </button>
           </label>
         </div>
       ))}
-
-      <hr />
-      <p>
+      <div>
         <strong>現在の第2軸荷重：</strong>
-        {usedLoad.toFixed(0)}kg
-      </p>
-      <p>
+        {Math.round(usedLoad).toLocaleString()}kg
+      </div>
+      <div>
         <strong>あと積める目安：</strong>
-        {remaining.toFixed(0)}kg
-      </p>
-
-      {emptyKeys.length > 0 && remaining > 0 ? (
-        <>
-          <h4>各エリア別 積載目安（第2軸10t超えない範囲）</h4>
+        {Math.round(remainingAxle).toLocaleString()}kg
+      </div>
+      {emptyAreas.length > 0 && (
+        <div style={{ marginTop: "1rem" }}>
+          👉 <strong>{emptyAreas.map((e) => e.toUpperCase()).join(", ")}</strong>
+          が未入力です
+        </div>
+      )}
+      {emptyAreas.length > 0 && (
+        <div style={{ marginTop: "1rem" }}>
+          <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
           <ul>
-            {emptyKeys.map((key) => (
+            {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
-                {key.toUpperCase()}：{recommended[key]}kg
+                {key.toUpperCase()}：{val.toLocaleString()}kg
               </li>
             ))}
           </ul>
-        </>
-      ) : (
-        <p style={{ color: "gray" }}>
-          👉 {emptyKeys.join(", ").toUpperCase()} が未入力です
-        </p>
+        </div>
       )}
     </div>
   );
