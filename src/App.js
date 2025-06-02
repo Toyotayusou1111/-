@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function App() {
   const [weights, setWeights] = useState({
@@ -49,7 +56,10 @@ export default function App() {
       後部: 0.279,
     };
 
-    const ratioSum = emptyAreas.reduce((acc, key) => acc + (ratios[key] || 0), 0);
+    const ratioSum = emptyAreas.reduce(
+      (acc, key) => acc + (ratios[key] || 0),
+      0
+    );
 
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
@@ -135,13 +145,33 @@ export default function App() {
       </div>
       <div style={{ marginTop: "1rem" }}>
         <strong>診断コメント：</strong>
-        <span style={{ color: usedLoad > MAX_AXLE_LOAD ? "red" : usedLoad >= 9500 ? "green" : "orange" }}>
+        <span
+          style={{
+            color:
+              usedLoad > MAX_AXLE_LOAD
+                ? "red"
+                : usedLoad >= 9500
+                ? "green"
+                : "orange",
+          }}
+        >
           {diagnosis}
         </span>
       </div>
-      <div style={{ width: "100%", height: 300, marginTop: "2rem", backgroundColor: "#f8f8f8" }}>
+      <div
+        style={{
+          width: "100%",
+          height: 300,
+          minHeight: 300,
+          marginTop: "2rem",
+          backgroundColor: "#f8f8f8",
+        }}
+      >
         <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+          >
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
