@@ -1,23 +1,4 @@
 import React, { useState } from "react";
-import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 export default function App() {
   const [weights, setWeights] = useState({
@@ -60,7 +41,7 @@ export default function App() {
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && usedTotal <= MAX_TOTAL_LOAD) {
+  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
     const ratios = {
       中間1: 0.211,
       中間2: 0.323,
@@ -74,7 +55,7 @@ export default function App() {
       rawRecommended[key] = remainingTotal * ((ratios[key] || 0) / ratioSum);
     });
 
-    const frontAxle = (parsedWeights.ひな壇 || 0) * influences.ひな壇;
+    const frontAxle = parsedWeights.ひな壇 * influences.ひな壇;
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
       frontAxle
@@ -101,28 +82,9 @@ export default function App() {
     }
   };
 
-  const barData = {
-    labels: areas,
-    datasets: [
-      {
-        label: "積載重量（kg）",
-        data: areas.map((key) => parsedWeights[key]),
-        backgroundColor: "rgba(54, 162, 235, 0.6)",
-      },
-    ],
-  };
-
-  const barOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: "top" },
-      title: { display: true, text: "各エリアの積載量" },
-    },
-  };
-
   return (
-    <div style={{ padding: "2rem", backgroundColor: usedTotal > MAX_TOTAL_LOAD ? '#ffe5e5' : '#f5f5f5' }}>
-      <h2>第2軸 荷重計算ツール（19700kg分配）</h2>
+    <div style={{ padding: "2rem" }}>
+      <h2>第2軸 荷重計算ツール</h2>
       {areas.map((key) => (
         <div key={key} style={{ marginBottom: "1rem" }}>
           <label>
@@ -151,10 +113,6 @@ export default function App() {
         {Math.round(usedLoad).toLocaleString()}kg
       </div>
       <div>
-        <strong>現在の総積載量：</strong>
-        {Math.round(usedTotal).toLocaleString()}kg
-      </div>
-      <div>
         <strong>あと積める目安：</strong>
         {Math.round(remainingAxle).toLocaleString()}kg（第2軸）
       </div>
@@ -165,7 +123,7 @@ export default function App() {
       )}
       {Object.keys(recommended).length > 0 && (
         <div style={{ marginTop: "1rem" }}>
-          <strong>目安積載量（全体19700kg配分 & 第2軸10t調整）：</strong>
+          <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
           <ul>
             {Object.entries(recommended).map(([key, val]) => (
               <li key={key}>
@@ -175,9 +133,6 @@ export default function App() {
           </ul>
         </div>
       )}
-      <div style={{ marginTop: "2rem" }}>
-        <Bar data={barData} options={barOptions} />
-      </div>
     </div>
   );
 }
