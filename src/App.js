@@ -22,12 +22,17 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedAxleLoad = Object.entries(parsedWeights).reduce(
-    (sum, [key, val]) => sum + val * influences[key],
-    0
-  );
+  const usedAxleLoad =
+    parsedWeights["ひな壇"] * influences["ひな壇"] +
+    parsedWeights["中間1"] * influences["中間1"] +
+    parsedWeights["中間2"] * influences["中間2"] +
+    parsedWeights["後部"] * influences["後部"];
 
-  const usedTotal = Object.values(parsedWeights).reduce((a, b) => a + b, 0);
+  const usedTotal =
+    parsedWeights["ひな壇"] +
+    parsedWeights["中間1"] +
+    parsedWeights["中間2"] +
+    parsedWeights["後部"];
 
   const remainingAxle = Math.max(0, MAX_AXLE_LOAD - usedAxleLoad);
   const remainingTotal = Math.max(0, MAX_TOTAL_LOAD - usedTotal);
@@ -44,38 +49,44 @@ export default function App() {
       後部: 0.241,
     };
 
-    const fixedTotal = Object.entries(parsedWeights).reduce(
-      (acc, [key, val]) => acc + val,
-      0
-    );
-    const fixedAxle = Object.entries(parsedWeights).reduce(
-      (acc, [key, val]) => acc + val * influences[key],
-      0
-    );
-
-    const ratioSum = emptyAreas.reduce((acc, key) => acc + baseRatios[key], 0);
-
-    // 仮の配分（比率で割り当て）
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
       rawRecommended[key] = baseRatios[key];
     });
 
-    // スケーリング調整
-    const totalScale = (MAX_TOTAL_LOAD - fixedTotal) / emptyAreas.reduce((sum, key) => sum + rawRecommended[key], 0);
+    const fixedWeights = Object.fromEntries(
+      Object.entries(parsedWeights).filter(([key]) => !emptyAreas.includes(key))
+    );
+
+    const fixedAxle = Object.entries(fixedWeights).reduce(
+      (acc, [key, val]) => acc + val * influences[key],
+      0
+    );
+    const fixedTotal = Object.values(fixedWeights).reduce((a, b) => a + b, 0);
+
+    const remainingWeight = MAX_TOTAL_LOAD - fixedTotal;
+    const remainingRatiosSum = emptyAreas.reduce(
+      (acc, key) => acc + baseRatios[key],
+      0
+    );
+
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = rawRecommended[key] * totalScale;
+      recommended[key] = Math.round(
+        (remainingWeight * baseRatios[key]) / remainingRatiosSum
+      );
     });
 
-    // 2軸荷重を最大10tに近づけるよう再スケール（2軸超過しない範囲で最大限）
-    const axleRaw = Object.entries(rawRecommended).reduce(
+    const fullWeights = { ...fixedWeights, ...recommended };
+    const fullAxleLoad = Object.entries(fullWeights).reduce(
       (acc, [key, val]) => acc + val * influences[key],
-      fixedAxle
+      0
     );
-    const axleScale = Math.min(1, MAX_AXLE_LOAD / axleRaw);
+    const scaleToMaxAxle = MAX_AXLE_LOAD / fullAxleLoad;
+    const scaleToMaxTotal = MAX_TOTAL_LOAD / Object.values(fullWeights).reduce((a, b) => a + b, 0);
+    const finalScale = Math.min(scaleToMaxAxle, scaleToMaxTotal);
 
     emptyAreas.forEach((key) => {
-      recommended[key] = Math.floor(rawRecommended[key] * axleScale);
+      recommended[key] = Math.round(recommended[key] * finalScale);
     });
   }
 
