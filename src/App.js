@@ -96,22 +96,6 @@ export default function App() {
       ? "◎ 第2軸荷重は適正範囲内です。"
       : "△ 第2軸荷重がやや不足しています。バランスに注意。";
 
-  const downloadCSV = () => {
-    const headers = ["エリア", "入力重量(kg)"];
-    const rows = Object.entries(parsedWeights).map(([k, v]) => [k, v]);
-    rows.push(["第2軸荷重", Math.round(usedLoad)]);
-    rows.push(["総積載量", Math.round(usedTotal)]);
-
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "荷重計算結果.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div style={{ padding: "2rem", maxWidth: "600px", margin: "auto" }}>
       <h2>第2軸 荷重計算ツール</h2>
@@ -141,6 +125,7 @@ export default function App() {
               backgroundColor: "#ccc",
               border: "none",
               cursor: "pointer",
+              marginLeft: "0.5rem",
             }}
           >
             ✖
@@ -176,26 +161,12 @@ export default function App() {
         </span>
       </div>
 
-      <button
-        onClick={downloadCSV}
-        style={{
-          marginTop: "2rem",
-          padding: "0.6rem 1.2rem",
-          fontSize: "1rem",
-          backgroundColor: "#4CAF50",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        結果をCSVでダウンロード
-      </button>
-
       {emptyAreas.length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "1rem", color: "#FF9900" }}>
           👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
         </div>
       )}
+
       {Object.keys(recommended).length > 0 && (
         <div style={{ marginTop: "1rem" }}>
           <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
