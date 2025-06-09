@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function App() {
   const [weights, setWeights] = useState({
@@ -10,12 +17,13 @@ export default function App() {
   });
 
   const influences = {
-    ひな壇: 0.6,
-    中間1: 0.8,
-    中間2: 0.5,
-    後部: 0.2,
+    ひな壇: 0.551,
+    中間1: 0.197,
+    中間2: 0.145,
+    後部: -0.183,
   };
 
+  const INTERCEPT = 6260;
   const MAX_AXLE_LOAD = 10000;
   const MAX_TOTAL_LOAD = 19700;
 
@@ -23,14 +31,12 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const rawLoad =
+  const usedLoad =
     parsedWeights.ひな壇 * influences.ひな壇 +
     parsedWeights.中間1 * influences.中間1 +
     parsedWeights.中間2 * influences.中間2 +
-    parsedWeights.後部 * influences.後部;
-
-  // 補正式を適用：実測値 ≒ 0.686 × 推定値 ＋ 2873.33
-  const usedLoad = 0.686 * rawLoad + 2873.33;
+    parsedWeights.後部 * influences.後部 +
+    INTERCEPT;
 
   const usedTotal =
     parsedWeights.ひな壇 +
@@ -52,23 +58,27 @@ export default function App() {
       後部: 0.279,
     };
 
-    const ratioSum = emptyAreas.reduce((acc, key) => acc + (ratios[key] || 0), 0);
+    const ratioSum = emptyAreas.reduce(
+      (acc, key) => acc + (ratios[key] || 0),
+      0
+    );
 
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
-      rawRecommended[key] = remainingTotal * ((ratios[key] || 0) / ratioSum);
+      rawRecommended[key] =
+        remainingTotal * ((ratios[key] || 0) / ratioSum);
     });
 
     const frontAxle = parsedWeights.ひな壇 * influences.ひな壇;
     const rawAxle = Object.entries(rawRecommended).reduce(
       (acc, [key, val]) => acc + val * influences[key],
-      frontAxle
+      frontAxle + INTERCEPT
     );
 
-    const scaledAxle = 0.686 * rawAxle + 2873.33;
     const scale =
-      scaledAxle > MAX_AXLE_LOAD
-        ? (MAX_AXLE_LOAD - (0.686 * frontAxle + 2873.33)) / (scaledAxle - (0.686 * frontAxle + 2873.33))
+      rawAxle > MAX_AXLE_LOAD
+        ? (MAX_AXLE_LOAD - frontAxle - INTERCEPT) /
+          (rawAxle - frontAxle - INTERCEPT)
         : 1;
 
     emptyAreas.forEach((key) => {
@@ -126,7 +136,7 @@ export default function App() {
         </div>
       ))}
       <div>
-        <strong>現在の第2軸荷重（補正後）：</strong>
+        <strong>現在の第2軸荷重：</strong>
         {Math.round(usedLoad).toLocaleString()}kg
       </div>
       <div>
@@ -139,13 +149,32 @@ export default function App() {
       </div>
       <div style={{ marginTop: "1rem" }}>
         <strong>診断コメント：</strong>
-        <span style={{ color: usedLoad > MAX_AXLE_LOAD ? "red" : usedLoad >= 9500 ? "green" : "orange" }}>
+        <span
+          style={{
+            color:
+              usedLoad > MAX_AXLE_LOAD
+                ? "red"
+                : usedLoad >= 9500
+                ? "green"
+                : "orange",
+          }}
+        >
           {diagnosis}
         </span>
       </div>
-      <div style={{ width: "100%", height: 300, marginTop: "2rem", backgroundColor: "#f8f8f8" }}>
+      <div
+        style={{
+          width: "100%",
+          height: 300,
+          marginTop: "2rem",
+          backgroundColor: "#f8f8f8",
+        }}
+      >
         <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+          >
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
