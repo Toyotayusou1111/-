@@ -23,11 +23,14 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const usedLoad =
+  const rawLoad =
     parsedWeights.ひな壇 * influences.ひな壇 +
     parsedWeights.中間1 * influences.中間1 +
     parsedWeights.中間2 * influences.中間2 +
     parsedWeights.後部 * influences.後部;
+
+  // 補正式を適用：実測値 ≒ 0.686 × 推定値 ＋ 2873.33
+  const usedLoad = 0.686 * rawLoad + 2873.33;
 
   const usedTotal =
     parsedWeights.ひな壇 +
@@ -62,9 +65,10 @@ export default function App() {
       frontAxle
     );
 
+    const scaledAxle = 0.686 * rawAxle + 2873.33;
     const scale =
-      rawAxle > MAX_AXLE_LOAD
-        ? (MAX_AXLE_LOAD - frontAxle) / (rawAxle - frontAxle)
+      scaledAxle > MAX_AXLE_LOAD
+        ? (MAX_AXLE_LOAD - (0.686 * frontAxle + 2873.33)) / (scaledAxle - (0.686 * frontAxle + 2873.33))
         : 1;
 
     emptyAreas.forEach((key) => {
@@ -122,7 +126,7 @@ export default function App() {
         </div>
       ))}
       <div>
-        <strong>現在の第2軸荷重：</strong>
+        <strong>現在の第2軸荷重（補正後）：</strong>
         {Math.round(usedLoad).toLocaleString()}kg
       </div>
       <div>
