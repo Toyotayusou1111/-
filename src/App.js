@@ -1,12 +1,4 @@
 import React, { useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 
 export default function App() {
   const [weights, setWeights] = useState({
@@ -97,11 +89,6 @@ export default function App() {
     }
   };
 
-  const data = areas.map((area) => ({
-    name: area,
-    重量: parsedWeights[area],
-  }));
-
   const diagnosis =
     usedLoad > MAX_AXLE_LOAD
       ? "⚠ 第2軸が過積載です。荷重を調整してください。"
@@ -109,32 +96,58 @@ export default function App() {
       ? "◎ 第2軸荷重は適正範囲内です。"
       : "△ 第2軸荷重がやや不足しています。バランスに注意。";
 
+  const downloadCSV = () => {
+    const headers = ["エリア", "入力重量(kg)"];
+    const rows = Object.entries(parsedWeights).map(([k, v]) => [k, v]);
+    rows.push(["第2軸荷重", Math.round(usedLoad)]);
+    rows.push(["総積載量", Math.round(usedTotal)]);
+
+    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", "荷重計算結果.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={{ padding: "2rem", maxWidth: "600px", margin: "auto" }}>
       <h2>第2軸 荷重計算ツール</h2>
       {areas.map((key) => (
         <div key={key} style={{ marginBottom: "1rem" }}>
-          <label>
+          <label style={{ display: "block", fontWeight: "bold" }}>
             {key}（kg）：
-            <input
-              id={key}
-              type="number"
-              value={weights[key]}
-              onChange={(e) =>
-                setWeights({ ...weights, [key]: e.target.value })
-              }
-              onKeyDown={(e) => handleKeyDown(e, key)}
-              style={{ marginLeft: "0.5rem" }}
-            />
-            <button
-              onClick={() => setWeights({ ...weights, [key]: "" })}
-              style={{ marginLeft: "0.5rem" }}
-            >
-              ✖
-            </button>
           </label>
+          <input
+            id={key}
+            type="number"
+            value={weights[key]}
+            onChange={(e) => setWeights({ ...weights, [key]: e.target.value })}
+            onKeyDown={(e) => handleKeyDown(e, key)}
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              fontSize: "1rem",
+              marginBottom: "0.3rem",
+            }}
+          />
+          <button
+            onClick={() => setWeights({ ...weights, [key]: "" })}
+            style={{
+              padding: "0.3rem 1rem",
+              fontSize: "1rem",
+              backgroundColor: "#ccc",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            ✖
+          </button>
         </div>
       ))}
+
       <div>
         <strong>現在の第2軸荷重：</strong>
         {Math.round(usedLoad).toLocaleString()}kg
@@ -162,26 +175,22 @@ export default function App() {
           {diagnosis}
         </span>
       </div>
-      <div
+
+      <button
+        onClick={downloadCSV}
         style={{
-          width: "100%",
-          height: 300,
           marginTop: "2rem",
-          backgroundColor: "#f8f8f8",
+          padding: "0.6rem 1.2rem",
+          fontSize: "1rem",
+          backgroundColor: "#4CAF50",
+          color: "white",
+          border: "none",
+          cursor: "pointer",
         }}
       >
-        <ResponsiveContainer>
-          <BarChart
-            data={data}
-            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-          >
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="重量" fill="#8884d8" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+        結果をCSVでダウンロード
+      </button>
+
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
           👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
