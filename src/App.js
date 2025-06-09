@@ -43,7 +43,7 @@ export default function App() {
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+  if (emptyAreas.length > 0 && remainingTotal > 0) {
     const ratios = {
       中間1: 0.211,
       中間2: 0.323,
@@ -58,7 +58,7 @@ export default function App() {
     const rawRecommended = {};
     emptyAreas.forEach((key) => {
       rawRecommended[key] =
-        remainingTotal * ((ratios[key] || 0) / ratioSum);
+        MAX_TOTAL_LOAD * ((ratios[key] || 0) / ratioSum);
     });
 
     const frontAxle = parsedWeights.ひな壇 * influences.ひな壇;
@@ -133,7 +133,8 @@ export default function App() {
           </button>
           {recommended[key] !== undefined && (
             <div style={{ marginTop: "0.5rem", color: "#555" }}>
-              👉 <strong>{key}</strong> の積載目安：{recommended[key].toLocaleString()}kg
+              👉 <strong>{key}</strong> の積載目安：
+              {recommended[key].toLocaleString()}kg
             </div>
           )}
         </div>
