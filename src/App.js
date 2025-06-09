@@ -99,8 +99,9 @@ export default function App() {
   return (
     <div style={{ padding: "2rem", maxWidth: "600px", margin: "auto" }}>
       <h2>第2軸 荷重計算ツール</h2>
+
       {areas.map((key) => (
-        <div key={key} style={{ marginBottom: "1rem" }}>
+        <div key={key} style={{ marginBottom: "1.5rem" }}>
           <label style={{ display: "block", fontWeight: "bold" }}>
             {key}（kg）：
           </label>
@@ -130,6 +131,11 @@ export default function App() {
           >
             ✖
           </button>
+          {recommended[key] !== undefined && (
+            <div style={{ marginTop: "0.5rem", color: "#555" }}>
+              👉 <strong>{key}</strong> の積載目安：{recommended[key].toLocaleString()}kg
+            </div>
+          )}
         </div>
       ))}
 
@@ -164,19 +170,6 @@ export default function App() {
       {emptyAreas.length > 0 && (
         <div style={{ marginTop: "1rem", color: "#FF9900" }}>
           👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
-        </div>
-      )}
-
-      {Object.keys(recommended).length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
-          <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
-          <ul>
-            {Object.entries(recommended).map(([key, val]) => (
-              <li key={key}>
-                {key}：{val.toLocaleString()}kg
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </div>
