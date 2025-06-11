@@ -1,74 +1,65 @@
 import React, { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function App() {
   const [weights, setWeights] = useState({
-    ひな壇: "",
-    中間1: "",
-    中間2: "",
-    後部: "",
+    hinadan: "",
+    chukan1: "",
+    chukan2: "",
+    koubu: "",
   });
 
-  const coefficients = {
-    ひな壇: 1.1768,
-    中間1: 0.3344,
-    中間2: 0.1491,
-    後部: -0.2180,
-  };
-
-  const intercept = 3554.87;
-
-  const parsedWeights = Object.fromEntries(
+  const parsed = Object.fromEntries(
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  const predictedAxleLoad =
-    parsedWeights.ひな壇 * coefficients.ひな壇 +
-    parsedWeights.中間1 * coefficients.中間1 +
-    parsedWeights.中間2 * coefficients.中間2 +
-    parsedWeights.後部 * coefficients.後部 +
-    intercept;
+  // 第2軸荷重（再学習モデルによる予測）
+  const axleWeight =
+    1.1768 * parsed.hinadan +
+    0.3344 * parsed.chukan1 +
+    0.1491 * parsed.chukan2 +
+    -0.2180 * parsed.koubu +
+    3554.87;
 
-  const data = [
-    { name: "第2軸荷重", value: Math.round(predictedAxleLoad) },
-    { name: "制限値", value: 10000 },
-  ];
+  const totalWeight =
+    parsed.hinadan + parsed.chukan1 + parsed.chukan2 + parsed.koubu;
+
+  const deficit = 10000 - axleWeight;
+  const comment =
+    axleWeight < 9700
+      ? "△ 第2軸荷重がやや不足しています。バランスに注意。"
+      : axleWeight > 10000
+      ? "⚠️ 第2軸荷重が超過しています。積載位置を見直してください。"
+      : "◎ 第2軸荷重は適正です。";
 
   const handleChange = (e) => {
     setWeights({ ...weights, [e.target.name]: e.target.value });
   };
 
   return (
-    <div className="p-4 max-w-xl mx-auto">
-      <h1 className="text-xl font-bold mb-4">再学習版｜第2軸荷重シミュレーター</h1>
-
-      {Object.keys(weights).map((key) => (
-        <div key={key} className="mb-2">
-          <label className="block mb-1">{key}</label>
+    <div style={{ padding: "2rem", maxWidth: 600, margin: "0 auto" }}>
+      <h1>第2軸 荷重計算ツール</h1>
+      {[
+        ["ひな壇（kg）", "hinadan"],
+        ["中間1（kg）", "chukan1"],
+        ["中間2（kg）", "chukan2"],
+        ["後部（kg）", "koubu"],
+      ].map(([label, name]) => (
+        <div key={name} style={{ marginBottom: "1rem" }}>
+          <label>{label}</label>
           <input
             type="number"
-            name={key}
-            value={weights[key]}
+            name={name}
+            value={weights[name]}
             onChange={handleChange}
-            className="w-full border p-2 rounded"
+            style={{ marginLeft: 10, padding: 5 }}
           />
         </div>
       ))}
 
-      <div className="mt-4">
-        <p>予測される第2軸荷重：<strong>{Math.round(predictedAxleLoad)} kg</strong></p>
-      </div>
-
-      <div className="mt-4" style={{ height: 200 }}>
-        <ResponsiveContainer>
-          <BarChart data={data}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <p><strong>現在の第2軸荷重：</strong>{axleWeight.toLocaleString()}kg</p>
+      <p><strong>現在の総積載量：</strong>{totalWeight.toLocaleString()}kg</p>
+      <p><strong>あと積める目安：</strong>{deficit.toLocaleString(undefined, { minimumFractionDigits: 3 })}kg（第2軸）</p>
+      <p style={{ color: "orange" }}><strong>診断コメント：</strong>{comment}</p>
     </div>
   );
 }
