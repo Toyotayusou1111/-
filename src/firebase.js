@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDummy-Key-For-Demo",
-  authDomain: "lift-log-demo.firebaseapp.com",
-  projectId: "lift-log-demo",
-  storageBucket: "lift-log-demo.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdefg1234567"
+  apiKey: "AIzaSyAwp0AEXFx9KcPn7ZC90BkK_ATZo",
+  authDomain: "lift-log-cloud.firebaseapp.com",
+  projectId: "lift-log-cloud",
+  storageBucket: "lift-log-cloud.appspot.com",
+  messagingSenderId: "148009173979",
+  appId: "1:148009173979:web:fbb65f7b839f924e6cb3e"
 };
 
 const app = initializeApp(firebaseConfig);
