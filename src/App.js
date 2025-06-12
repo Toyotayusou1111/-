@@ -165,10 +165,26 @@ export default function App() {
         );
       })}
       {entries.length < 26 && (
-        <button onClick={addEntry} style={{ padding: "0.5rem 1rem", fontSize: "1rem" }}>
+        <button
+          onClick={addEntry}
+          style={{
+            position: "fixed",
+            bottom: "1rem",
+            right: "1rem",
+            padding: "0.75rem 1.25rem",
+            fontSize: "1rem",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "0.5rem",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            zIndex: 1000,
+          }}
+        >
           ＋便を追加する
         </button>
       )}
     </div>
   );
 }
+
