@@ -43,7 +43,7 @@ export default function App() {
   const emptyAreas = areas.filter((area) => !weights[area]);
 
   const recommended = {};
-  if (emptyAreas.length > 0 && remainingAxle > 0 && remainingTotal > 0) {
+  if (emptyAreas.length >= 1) {
     const ratios = {
       中間1: 0.211,
       中間2: 0.323,
