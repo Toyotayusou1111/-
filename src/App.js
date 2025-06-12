@@ -1,146 +1,206 @@
-import React, { useState } from "react";
-
-const initialArea = () => ({
-  assistant: ["", "", "", ""],
-  driver: ["", "", "", ""],
-});
-
-const initialBin = () => ({
-  id: Date.now(),
-  areas: {
-    ひな壇: initialArea(),
-    中間1: initialArea(),
-    中間2: initialArea(),
-    後部: initialArea(),
-  },
-});
-
-const AREA_WEIGHTS = {
-  ひな壇: 3700,
-  中間1: 4100,
-  中間2: 6400,
-  後部: 5500,
-};
-
-const AREA_COEFFICIENTS = {
-  ひな壇: 0.6,
-  中間1: 0.8,
-  中間2: 0.5,
-  後部: 0.2,
-};
+import React, { useState, useRef } from "react";
+import { db, collection, addDoc, serverTimestamp } from "./firebase";
 
 export default function App() {
-  const [bins, setBins] = useState([initialBin()]);
+  const MAX_AXLE_LOAD = 10000;
+  const MAX_TOTAL_LOAD = 19700;
+  const influences = {
+    ひな壇: 1.2006,
+    中間1: 0.3345,
+    中間2: 0.1491,
+    後部: -0.218,
+  };
+  const INTERCEPT = 3554.87;
 
-  const handleInputChange = (binId, area, role, index, value) => {
-    const updatedBins = bins.map((bin) => {
-      if (bin.id !== binId) return bin;
-      const newBin = { ...bin };
-      newBin.areas[area][role][index] = value;
-      return newBin;
+  const areaLabels = [
+    { key: "ひな壇", label: "ひな壇（3,700kg）" },
+    { key: "中間1", label: "中間①（4,100kg）" },
+    { key: "中間2", label: "中間②（6,400kg）" },
+    { key: "後部", label: "後部（5,500kg）" },
+  ];
+
+  const defaultRow = () => Array(4).fill({ left: "", right: "" });
+
+  const initialEntry = () => ({
+    便名: "",
+    ひな壇: defaultRow(),
+    中間1: defaultRow(),
+    中間2: defaultRow(),
+    後部: defaultRow(),
+  });
+
+  const [entries, setEntries] = useState([initialEntry()]);
+  const inputRefs = useRef({});
+
+  const updateCell = (entryIdx, area, index, side, value) => {
+    const updatedEntries = [...entries];
+    const areaRows = [...updatedEntries[entryIdx][area]];
+    areaRows[index] = { ...areaRows[index], [side]: value };
+    updatedEntries[entryIdx][area] = areaRows;
+    setEntries(updatedEntries);
+  };
+
+  const parseValue = (val) => parseFloat(val) || 0;
+
+  const calculateAreaTotal = (entry, area) => {
+    return entry[area].reduce(
+      (sum, row) => sum + parseValue(row.left) + parseValue(row.right),
+      0
+    );
+  };
+
+  const calculateTotals = (entry) => {
+    const totalWeight = areaLabels.reduce(
+      (sum, { key }) => sum + calculateAreaTotal(entry, key),
+      0
+    );
+    const axleWeight =
+      calculateAreaTotal(entry, "ひな壇") * influences.ひな壇 +
+      calculateAreaTotal(entry, "中間1") * influences.中間1 +
+      calculateAreaTotal(entry, "中間2") * influences.中間2 +
+      calculateAreaTotal(entry, "後部") * influences.後部 +
+      INTERCEPT;
+    return { totalWeight, axleWeight };
+  };
+
+  const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const nextField = () => {
+        const areaIdx = areaLabels.findIndex((a) => a.key === area);
+        if (side === "left") return [entryIdx, area, rowIdx, "right"];
+        if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
+        if (areaIdx < areaLabels.length - 1)
+          return [entryIdx, areaLabels[areaIdx + 1].key, 0, "left"];
+        if (entryIdx < entries.length - 1)
+          return [entryIdx + 1, "ひな壇", 0, "left"];
+        return null;
+      }();
+
+      if (nextField) {
+        const [ei, ak, ri, sd] = nextField;
+        const refKey = `${ei}-${ak}-${ri}-${sd}`;
+        const nextInput = inputRefs.current[refKey];
+        if (nextInput) nextInput.focus();
+      }
+    }
+  };
+
+  const addEntry = () => {
+    if (entries.length < 26) {
+      setEntries([...entries, initialEntry()]);
+    }
+  };
+
+  const saveToCloud = async (entry) => {
+    const { totalWeight, axleWeight } = calculateTotals(entry);
+    const data = {
+      便名: entry.便名,
+      timestamp: serverTimestamp(),
+      totalWeight,
+      axleWeight,
+    };
+    areaLabels.forEach(({ key }) => {
+      data[key] = entry[key];
     });
-    setBins(updatedBins);
-  };
-
-  const calcAreaTotal = (areaData) => {
-    const allValues = [...areaData.assistant, ...areaData.driver];
-    return allValues.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-  };
-
-  const calcAxleLoad = (bin) => {
-    return Object.entries(bin.areas).reduce((sum, [key, area]) => {
-      const total = calcAreaTotal(area);
-      return sum + total * AREA_COEFFICIENTS[key];
-    }, 0);
-  };
-
-  const addBin = () => {
-    setBins([...bins, initialBin()]);
+    try {
+      await addDoc(collection(db, "liftLogs"), data);
+      alert("✅ クラウドに保存しました");
+    } catch (err) {
+      alert("❌ 保存に失敗しました");
+    }
   };
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6">リフト重量記録（便単位）</h1>
-
-      {bins.map((bin, binIndex) => (
-        <div key={bin.id} className="bg-white rounded-2xl p-4 shadow mb-6">
-          <h2 className="text-lg font-semibold mb-4">便名：{binIndex + 1}</h2>
-
-          {Object.entries(bin.areas).map(([areaName, areaData]) => (
-            <div key={areaName} className="mb-6 border-b pb-4">
-              <h3 className="font-bold mb-2">
-                {areaName}（{AREA_WEIGHTS[areaName].toLocaleString()}kg）
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  {areaData.assistant.map((val, idx) => (
-                    <div key={idx} className="mb-1">
-                      <label className="text-sm mr-2">
-                        助手席{idx + 1}：
-                      </label>
+    <div style={{ padding: "1rem" }}>
+      <h2>リフト重量記録（最大26便）</h2>
+      {entries.map((entry, entryIdx) => {
+        const { axleWeight, totalWeight } = calculateTotals(entry);
+        return (
+          <div key={entryIdx} style={{ marginBottom: "2rem", borderBottom: "1px solid #ccc", paddingBottom: "1rem" }}>
+            <div style={{ marginBottom: "1rem" }}>
+              <label>
+                便名：
+                <input
+                  type="text"
+                  value={entry.便名}
+                  onChange={(e) => {
+                    const updated = [...entries];
+                    updated[entryIdx].便名 = e.target.value;
+                    setEntries(updated);
+                  }}
+                  style={{ marginLeft: "0.5rem", width: "120px" }}
+                />
+              </label>
+            </div>
+            {areaLabels.map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: "1.5rem" }}>
+                <h4>{label}</h4>
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <label>
+                      助手席側{i + 1}：
                       <input
                         type="number"
-                        value={val}
-                        onChange={(e) =>
-                          handleInputChange(
-                            bin.id,
-                            areaName,
-                            "assistant",
-                            idx,
-                            e.target.value
-                          )
-                        }
-                        className="border px-2 py-1 rounded w-24"
+                        value={entry[key][i]?.left || ""}
+                        onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
+                        style={{ width: "100px", marginLeft: "0.5rem" }}
                       />
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  {areaData.driver.map((val, idx) => (
-                    <div key={idx} className="mb-1">
-                      <label className="text-sm mr-2">
-                        運転席{idx + 1}：
-                      </label>
+                    </label>
+                    <label>
+                      運転席側{i + 1}：
                       <input
                         type="number"
-                        value={val}
-                        onChange={(e) =>
-                          handleInputChange(
-                            bin.id,
-                            areaName,
-                            "driver",
-                            idx,
-                            e.target.value
-                          )
-                        }
-                        className="border px-2 py-1 rounded w-24"
+                        value={entry[key][i]?.right || ""}
+                        onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
+                        style={{ width: "100px", marginLeft: "0.5rem" }}
                       />
-                    </div>
-                  ))}
+                    </label>
+                  </div>
+                ))}
+                <div>
+                  ⇒ エリア合計：<strong>{Math.round(calculateAreaTotal(entry, key)).toLocaleString()}kg</strong>
                 </div>
               </div>
-
-              <p className="mt-2 text-sm text-gray-600">
-                ➤ エリア合計: {calcAreaTotal(areaData)}kg
-              </p>
+            ))}
+            <div>
+              <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
             </div>
-          ))}
-
-          <div className="text-right font-semibold">
-            第2軸荷重：{calcAxleLoad(bin).toFixed(0)}kg
+            <div>
+              <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
+            </div>
+            <button
+              onClick={() => saveToCloud(entry)}
+              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px" }}
+            >
+              ☁ クラウド保存
+            </button>
           </div>
-        </div>
-      ))}
-
-      <div className="fixed bottom-4 left-4">
+        );
+      })}
+      {entries.length < 26 && (
         <button
-          onClick={addBin}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl shadow hover:bg-blue-700"
+          onClick={addEntry}
+          style={{
+            display: "block",
+            marginTop: "1rem",
+            marginLeft: "0",
+            padding: "0.75rem 1.25rem",
+            fontSize: "1rem",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "0.5rem",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+          }}
         >
           ＋便を追加する
         </button>
-      </div>
+      )}
     </div>
   );
 }
-
