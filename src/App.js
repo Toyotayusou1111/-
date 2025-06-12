@@ -65,7 +65,7 @@ export default function App() {
   const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextField = () => {
+      const nextField = (() => {
         const areaIdx = areaLabels.findIndex((a) => a.key === area);
         if (side === "left") return [entryIdx, area, rowIdx, "right"];
         if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
@@ -74,7 +74,7 @@ export default function App() {
         if (entryIdx < entries.length - 1)
           return [entryIdx + 1, "ひな壇", 0, "left"];
         return null;
-      }();
+      })();
 
       if (nextField) {
         const [ei, ak, ri, sd] = nextField;
@@ -187,4 +187,3 @@ export default function App() {
     </div>
   );
 }
-
