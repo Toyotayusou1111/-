@@ -93,7 +93,7 @@ export default function App() {
 
   return (
     <div style={{ padding: "1rem" }}>
-      <h2>リフト重量記録（最大26便）</h2>
+      <h2>リフト重量記録（便単位）</h2>
       {entries.map((entry, entryIdx) => {
         const { axleWeight, totalWeight } = calculateTotals(entry);
         return (
@@ -121,12 +121,12 @@ export default function App() {
                     key={i}
                     style={{
                       display: "flex",
-                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
                       gap: "0.5rem",
-                      marginBottom: "0.5rem",
                     }}
                   >
-                    <label>
+                    <label style={{ flex: "1 1 45%" }}>
                       助手席側{i + 1}：
                       <input
                         type="number"
@@ -137,7 +137,7 @@ export default function App() {
                         style={{ width: "100%" }}
                       />
                     </label>
-                    <label>
+                    <label style={{ flex: "1 1 45%" }}>
                       運転席側{i + 1}：
                       <input
                         type="number"
