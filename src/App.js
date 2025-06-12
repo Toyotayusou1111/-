@@ -45,14 +45,14 @@ export default function App() {
   const calculateAreaTotal = (entry, area) => {
     return entry[area].reduce(
       (sum, row) => sum + parseValue(row.left) + parseValue(row.right),
-0
+      0
     );
   };
 
   const calculateTotals = (entry) => {
     const totalWeight = areaLabels.reduce(
       (sum, { key }) => sum + calculateAreaTotal(entry, key),
-0
+      0
     );
     const axleWeight =
       calculateAreaTotal(entry, "ひな壇") * influences.ひな壇 +
@@ -79,7 +79,7 @@ export default function App() {
 
       if (nextField) {
         const [ei, ak, ri, sd] = nextField;
-        const refKey = ${ei}-${ak}-${ri}-${sd};
+        const refKey = `${ei}-${ak}-${ri}-${sd}`;
         const nextInput = inputRefs.current[refKey];
         if (nextInput) nextInput.focus();
       }
@@ -105,9 +105,10 @@ export default function App() {
     });
     try {
       await addDoc(collection(db, "liftLogs"), data);
-      alert("✅ クラウドに保存しました");
+      alert("✅ クラウドに保存しました！");
     } catch (err) {
       alert("❌ 保存に失敗しました");
+      console.error("Firestore保存エラー:", err);
     }
   };
 
@@ -152,7 +153,7 @@ export default function App() {
                         value={entry[key][i]?.left || ""}
                         onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
-                        ref={(el) => (inputRefs.current[${entryIdx}-${key}-${i}-left] = el)}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
                         style={{ width: "100px" }}
                       />
                     </label>
@@ -163,7 +164,7 @@ export default function App() {
                         value={entry[key][i]?.right || ""}
                         onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
-                        ref={(el) => (inputRefs.current[${entryIdx}-${key}-${i}-right] = el)}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
                         style={{ width: "100px" }}
                       />
                     </label>
@@ -219,5 +220,3 @@ export default function App() {
     </div>
   );
 }
-
-
