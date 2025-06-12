@@ -134,7 +134,7 @@ export default function App() {
                         onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "100%" }}
+                        style={{ width: "5rem" }}
                       />
                     </label>
                     <label style={{ flex: "1 1 45%" }}>
@@ -145,7 +145,7 @@ export default function App() {
                         onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
-                        style={{ width: "100%" }}
+                        style={{ width: "5rem" }}
                       />
                     </label>
                   </div>
