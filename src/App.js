@@ -121,12 +121,12 @@ export default function App() {
                     key={i}
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
+                      justifyContent: "flex-start",
                       flexWrap: "wrap",
-                      gap: "0.5rem",
+                      gap: "1rem",
                     }}
                   >
-                    <label style={{ flex: "1 1 45%" }}>
+                    <label>
                       助手席側{i + 1}：
                       <input
                         type="number"
@@ -134,10 +134,10 @@ export default function App() {
                         onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "5rem" }}
+                        style={{ width: "5rem", marginRight: "0.5rem" }}
                       />
                     </label>
-                    <label style={{ flex: "1 1 45%" }}>
+                    <label>
                       運転席側{i + 1}：
                       <input
                         type="number"
