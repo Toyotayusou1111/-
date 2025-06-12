@@ -66,7 +66,7 @@ export default function App() {
   const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextField = (() => {
+      const nextField = () => {
         const areaIdx = areaLabels.findIndex((a) => a.key === area);
         if (side === "left") return [entryIdx, area, rowIdx, "right"];
         if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
@@ -75,7 +75,7 @@ export default function App() {
         if (entryIdx < entries.length - 1)
           return [entryIdx + 1, "ひな壇", 0, "left"];
         return null;
-      })(); // ✅ セミコロンが必要だった箇所
+      }();
 
       if (nextField) {
         const [ei, ak, ri, sd] = nextField;
@@ -138,29 +138,31 @@ export default function App() {
                 <h4>{label}</h4>
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between" }}>
                   {[0, 1, 2, 3].map((i) => (
-                    <div key={i} style={{ display: "flex", gap: "0.5rem", width: "48%" }}>
-                      <label>
-                        助手席側{i + 1}：
-                        <input
-                          type="number"
-                          value={entry[key][i]?.left || ""}
-                          onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
-                          ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                          style={{ width: "80px" }}
-                        />
-                      </label>
-                      <label>
-                        運転席側{i + 1}：
-                        <input
-                          type="number"
-                          value={entry[key][i]?.right || ""}
-                          onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
-                          ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
-                          style={{ width: "80px" }}
-                        />
-                      </label>
+                    <div key={i} style={{ display: "flex", gap: "2rem", width: "100%" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        <label>
+                          助手席側{i + 1}：
+                          <input
+                            type="number"
+                            value={entry[key][i]?.left || ""}
+                            onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
+                            ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
+                            style={{ width: "100px" }}
+                          />
+                        </label>
+                        <label>
+                          運転席側{i + 1}：
+                          <input
+                            type="number"
+                            value={entry[key][i]?.right || ""}
+                            onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
+                            ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
+                            style={{ width: "100px" }}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -189,7 +191,9 @@ export default function App() {
           onClick={addEntry}
           style={{
             display: "block",
-            margin: "1rem auto",
+            marginTop: "1rem",
+            marginLeft: "0",
+            marginRight: "auto",
             padding: "0.75rem 1.25rem",
             fontSize: "1rem",
             backgroundColor: "#007bff",
