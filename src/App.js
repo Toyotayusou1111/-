@@ -100,7 +100,7 @@ export default function App() {
     <div style={{ padding: "2rem", maxWidth: "600px", margin: "auto" }}>
       <h2>第2軸 荷重計算ツール</h2>
       {areas.map((key) => (
-        <div key={key} style={{ marginBottom: "1rem" }}>
+        <div key={key} style={{ marginBottom: "1.5rem" }}>
           <label style={{ display: "block", fontWeight: "bold" }}>
             {key}（kg）：
           </label>
@@ -131,7 +131,7 @@ export default function App() {
             ✖
           </button>
           {recommended[key] && (
-            <div style={{ color: "#FF9900", marginTop: "0.3rem" }}>
+            <div style={{ color: "#FF9900", marginTop: "0.4rem" }}>
               👉 <strong>{key} の積載目安：</strong>
               {recommended[key].toLocaleString()}kg
             </div>
@@ -171,3 +171,4 @@ export default function App() {
     </div>
   );
 }
+
