@@ -9,13 +9,13 @@ export default function App() {
   });
 
   const influences = {
-    ひな壇: 1.2006,
-    中間1: 0.3345,
-    中間2: 0.1491,
-    後部: -0.2180,
+    ひな壇: 3.7885,
+    中間1: 2.9224,
+    中間2: 2.7370,
+    後部: 2.3699,
   };
 
-  const INTERCEPT = 3554.87;
+  const INTERCEPT = 3557.46;
   const MAX_AXLE_LOAD = 10000;
   const MAX_TOTAL_LOAD = 19700;
 
