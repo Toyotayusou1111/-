@@ -9,7 +9,7 @@ export default function App() {
   });
 
   const influences = {
-    ひな壇: 1.2007,
+    ひな壇: 1.2006,
     中間1: 0.3345,
     中間2: 0.1491,
     後部: -0.2180,
@@ -171,4 +171,3 @@ export default function App() {
     </div>
   );
 }
-
