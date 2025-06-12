@@ -164,33 +164,30 @@ export default function App() {
             <div>
               <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
             </div>
-            <div>
+            <div style={{ marginBottom: "1rem" }}>
               <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
             </div>
+            {entryIdx === entries.length - 1 && entries.length < 26 && (
+              <button
+                onClick={addEntry}
+                style={{
+                  display: "block",
+                  margin: "0 auto",
+                  padding: "0.75rem 1.25rem",
+                  fontSize: "1rem",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                }}
+              >
+                ＋便を追加する
+              </button>
+            )}
           </div>
         );
       })}
-      {entries.length < 26 && (
-        <button
-          onClick={addEntry}
-          style={{
-            position: "fixed",
-            bottom: "1rem",
-            right: "1rem",
-            padding: "0.75rem 1.25rem",
-            fontSize: "1rem",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "0.5rem",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-            zIndex: 1000,
-          }}
-        >
-          ＋便を追加する
-        </button>
-      )}
     </div>
   );
 }
-
