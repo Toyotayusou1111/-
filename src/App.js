@@ -66,7 +66,7 @@ export default function App() {
   const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextField = () => {
+      const nextField = (() => {
         const areaIdx = areaLabels.findIndex((a) => a.key === area);
         if (side === "left") return [entryIdx, area, rowIdx, "right"];
         if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
@@ -75,7 +75,7 @@ export default function App() {
         if (entryIdx < entries.length - 1)
           return [entryIdx + 1, "ひな壇", 0, "left"];
         return null;
-      }();
+      })();
 
       if (nextField) {
         const [ei, ak, ri, sd] = nextField;
@@ -117,7 +117,14 @@ export default function App() {
       {entries.map((entry, entryIdx) => {
         const { axleWeight, totalWeight } = calculateTotals(entry);
         return (
-          <div key={entryIdx} style={{ marginBottom: "2rem", borderBottom: "1px solid #ccc", paddingBottom: "1rem" }}>
+          <div
+            key={entryIdx}
+            style={{
+              marginBottom: "2rem",
+              borderBottom: "1px solid #ccc",
+              paddingBottom: "1rem",
+            }}
+          >
             <div style={{ marginBottom: "1rem" }}>
               <label>
                 便名：
@@ -137,7 +144,7 @@ export default function App() {
               <div key={key} style={{ marginBottom: "1.5rem" }}>
                 <h4>{label}</h4>
                 {[0, 1, 2, 3].map((i) => (
-                  <div key={i} style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div key={i} style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
                     <label>
                       助手席側{i + 1}：
                       <input
@@ -146,7 +153,7 @@ export default function App() {
                         onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "100px", marginLeft: "0.5rem" }}
+                        style={{ width: "100px" }}
                       />
                     </label>
                     <label>
@@ -157,7 +164,7 @@ export default function App() {
                         onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
-                        style={{ width: "100px", marginLeft: "0.5rem" }}
+                        style={{ width: "100px" }}
                       />
                     </label>
                   </div>
@@ -175,7 +182,14 @@ export default function App() {
             </div>
             <button
               onClick={() => saveToCloud(entry)}
-              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px" }}
+              style={{
+                marginTop: "0.5rem",
+                padding: "0.5rem 1rem",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+              }}
             >
               ☁ クラウド保存
             </button>
@@ -189,6 +203,7 @@ export default function App() {
             display: "block",
             marginTop: "1rem",
             marginLeft: "0",
+            marginRight: "auto",
             padding: "0.75rem 1.25rem",
             fontSize: "1rem",
             backgroundColor: "#007bff",
