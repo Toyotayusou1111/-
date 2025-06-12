@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 export default function App() {
   const MAX_AXLE_LOAD = 10000;
@@ -7,7 +7,7 @@ export default function App() {
     ひな壇: 1.2006,
     中間1: 0.3345,
     中間2: 0.1491,
-    後部: -0.2180,
+    後部: -0.218,
   };
   const INTERCEPT = 3554.87;
 
@@ -18,104 +18,157 @@ export default function App() {
     { key: "後部", label: "後部（5,500kg）" },
   ];
 
-  const initialEntry = {
+  const defaultRow = () => Array(4).fill({ left: "", right: "" });
+
+  const initialEntry = () => ({
     便名: "",
-    ひな壇: Array(4).fill({ left: "", right: "" }),
-    中間1: Array(4).fill({ left: "", right: "" }),
-    中間2: Array(4).fill({ left: "", right: "" }),
-    後部: Array(4).fill({ left: "", right: "" }),
-  };
+    ひな壇: defaultRow(),
+    中間1: defaultRow(),
+    中間2: defaultRow(),
+    後部: defaultRow(),
+  });
 
-  const [entry, setEntry] = useState(initialEntry);
+  const [entries, setEntries] = useState([initialEntry()]);
+  const inputRefs = useRef({});
 
-  const updateCell = (area, index, side, value) => {
-    const updatedArea = [...entry[area]];
-    updatedArea[index] = { ...updatedArea[index], [side]: value };
-    setEntry({ ...entry, [area]: updatedArea });
+  const updateCell = (entryIdx, area, index, side, value) => {
+    const updatedEntries = [...entries];
+    const areaRows = [...updatedEntries[entryIdx][area]];
+    areaRows[index] = { ...areaRows[index], [side]: value };
+    updatedEntries[entryIdx][area] = areaRows;
+    setEntries(updatedEntries);
   };
 
   const parseValue = (val) => parseFloat(val) || 0;
 
-  const calculateAreaTotal = (area) => {
+  const calculateAreaTotal = (entry, area) => {
     return entry[area].reduce(
       (sum, row) => sum + parseValue(row.left) + parseValue(row.right),
       0
     );
   };
 
-  const calculateAxleWeight = () => {
-    const values = Object.fromEntries(
-      areaLabels.map(({ key }) => [key, calculateAreaTotal(key)])
+  const calculateTotals = (entry) => {
+    const totalWeight = areaLabels.reduce(
+      (sum, { key }) => sum + calculateAreaTotal(entry, key),
+      0
     );
-    return (
-      values.ひな壇 * influences.ひな壇 +
-      values.中間1 * influences.中間1 +
-      values.中間2 * influences.中間2 +
-      values.後部 * influences.後部 +
-      INTERCEPT
-    );
+    const axleWeight =
+      calculateAreaTotal(entry, "ひな壇") * influences.ひな壇 +
+      calculateAreaTotal(entry, "中間1") * influences.中間1 +
+      calculateAreaTotal(entry, "中間2") * influences.中間2 +
+      calculateAreaTotal(entry, "後部") * influences.後部 +
+      INTERCEPT;
+    return { totalWeight, axleWeight };
   };
 
-  const totalWeight = areaLabels.reduce(
-    (sum, { key }) => sum + calculateAreaTotal(key),
-    0
-  );
-  const axleWeight = calculateAxleWeight();
+  const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const nextField = () => {
+        const areaIdx = areaLabels.findIndex((a) => a.key === area);
+        if (side === "left") return [entryIdx, area, rowIdx, "right"];
+        if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
+        if (areaIdx < areaLabels.length - 1)
+          return [entryIdx, areaLabels[areaIdx + 1].key, 0, "left"];
+        if (entryIdx < entries.length - 1)
+          return [entryIdx + 1, "ひな壇", 0, "left"];
+        return null;
+      }();
+
+      if (nextField) {
+        const [ei, ak, ri, sd] = nextField;
+        const refKey = `${ei}-${ak}-${ri}-${sd}`;
+        const nextInput = inputRefs.current[refKey];
+        if (nextInput) nextInput.focus();
+      }
+    }
+  };
+
+  const addEntry = () => {
+    if (entries.length < 26) {
+      setEntries([...entries, initialEntry()]);
+    }
+  };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>リフト重量記録（便単位）</h2>
-
-      <div style={{ marginBottom: "1rem" }}>
-        <label>
-          便名：
-          <input
-            type="text"
-            value={entry.便名}
-            onChange={(e) => setEntry({ ...entry, 便名: e.target.value })}
-            style={{ marginLeft: "0.5rem", width: "120px" }}
-          />
-        </label>
-      </div>
-
-      {areaLabels.map(({ key, label }) => (
-        <div key={key} style={{ marginBottom: "1.5rem" }}>
-          <h4>{label}</h4>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
+    <div style={{ padding: "1rem" }}>
+      <h2>リフト重量記録（最大26便）</h2>
+      {entries.map((entry, entryIdx) => {
+        const { axleWeight, totalWeight } = calculateTotals(entry);
+        return (
+          <div key={entryIdx} style={{ marginBottom: "2rem", borderBottom: "1px solid #ccc", paddingBottom: "1rem" }}>
+            <div style={{ marginBottom: "1rem" }}>
               <label>
-                助手席側{i + 1}：
+                便名：
                 <input
-                  type="number"
-                  value={entry[key][i]?.left || ""}
-                  onChange={(e) => updateCell(key, i, "left", e.target.value)}
-                  style={{ width: "60px" }}
-                />
-              </label>
-              <label>
-                運転席側{i + 1}：
-                <input
-                  type="number"
-                  value={entry[key][i]?.right || ""}
-                  onChange={(e) => updateCell(key, i, "right", e.target.value)}
-                  style={{ width: "60px" }}
+                  type="text"
+                  value={entry.便名}
+                  onChange={(e) => {
+                    const updated = [...entries];
+                    updated[entryIdx].便名 = e.target.value;
+                    setEntries(updated);
+                  }}
+                  style={{ marginLeft: "0.5rem", width: "120px" }}
                 />
               </label>
             </div>
-          ))}
-          <div>
-            ⇒ エリア合計：<strong>{Math.round(calculateAreaTotal(key)).toLocaleString()}kg</strong>
+            {areaLabels.map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: "1.5rem" }}>
+                <h4>{label}</h4>
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    <label>
+                      助手席側{i + 1}：
+                      <input
+                        type="number"
+                        value={entry[key][i]?.left || ""}
+                        onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
+                        style={{ width: "100%" }}
+                      />
+                    </label>
+                    <label>
+                      運転席側{i + 1}：
+                      <input
+                        type="number"
+                        value={entry[key][i]?.right || ""}
+                        onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
+                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
+                        style={{ width: "100%" }}
+                      />
+                    </label>
+                  </div>
+                ))}
+                <div>
+                  ⇒ エリア合計：<strong>{Math.round(calculateAreaTotal(entry, key)).toLocaleString()}kg</strong>
+                </div>
+              </div>
+            ))}
+            <div>
+              <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
+            </div>
+            <div>
+              <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
+            </div>
           </div>
-        </div>
-      ))}
-
-      <hr />
-      <div style={{ marginTop: "1rem" }}>
-        <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
-      </div>
-      <div>
-        <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
-      </div>
+        );
+      })}
+      {entries.length < 26 && (
+        <button onClick={addEntry} style={{ padding: "0.5rem 1rem", fontSize: "1rem" }}>
+          ＋便を追加する
+        </button>
+      )}
     </div>
   );
 }
