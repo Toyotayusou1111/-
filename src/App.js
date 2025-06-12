@@ -110,6 +110,7 @@ export default function App() {
                     setEntries(updated);
                   }}
                   style={{ marginLeft: "0.5rem", width: "120px" }}
+                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 />
               </label>
             </div>
@@ -121,29 +122,34 @@ export default function App() {
                     key={i}
                     style={{
                       display: "flex",
-                      justifyContent: "flex-start",
                       flexWrap: "wrap",
-                      gap: "1rem",
+                      gap: "0.5rem",
                     }}
                   >
                     <label>
                       助手席側{i + 1}：
                       <input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={entry[key][i]?.left || ""}
                         onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
+                        onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "5rem", marginRight: "0.5rem" }}
+                        style={{ width: "5rem" }}
                       />
                     </label>
                     <label>
                       運転席側{i + 1}：
                       <input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={entry[key][i]?.right || ""}
                         onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
+                        onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                         ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
                         style={{ width: "5rem" }}
                       />
@@ -187,3 +193,4 @@ export default function App() {
     </div>
   );
 }
+
