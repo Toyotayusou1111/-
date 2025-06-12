@@ -93,6 +93,14 @@ export default function App() {
   };
 
   const saveToCloud = async (entry) => {
+    console.log("▶ クラウド保存処理 開始");
+
+    if (!entry.便名 || entry.便名.trim() === "") {
+      alert("便名を入力してください。");
+      console.warn("❌ 便名が空のため保存中止");
+      return;
+    }
+
     const { totalWeight, axleWeight } = calculateTotals(entry);
     const data = {
       便名: entry.便名,
@@ -103,12 +111,14 @@ export default function App() {
     areaLabels.forEach(({ key }) => {
       data[key] = entry[key];
     });
+
     try {
       await addDoc(collection(db, "liftLogs"), data);
+      console.log("✅ Firestore保存成功");
       alert("✅ クラウドに保存しました！");
     } catch (err) {
+      console.error("❌ 保存エラー:", err);
       alert("❌ 保存に失敗しました");
-      console.error("Firestore保存エラー:", err);
     }
   };
 
