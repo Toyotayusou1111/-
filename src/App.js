@@ -130,6 +130,12 @@ export default function App() {
           >
             ✖
           </button>
+          {recommended[key] && (
+            <div style={{ color: "#FF9900", marginTop: "0.3rem" }}>
+              👉 <strong>{key} の積載目安：</strong>
+              {recommended[key].toLocaleString()}kg
+            </div>
+          )}
         </div>
       ))}
 
@@ -143,7 +149,9 @@ export default function App() {
       </div>
       <div>
         <strong>あと積める目安：</strong>
-        {Math.round(remainingAxle).toLocaleString()}kg（第2軸）
+        {remainingAxle.toLocaleString(undefined, {
+          minimumFractionDigits: 3,
+        })}kg（第2軸）
       </div>
       <div style={{ marginTop: "1rem" }}>
         <strong>診断コメント：</strong>
@@ -160,25 +168,6 @@ export default function App() {
           {diagnosis}
         </span>
       </div>
-
-      {emptyAreas.length > 0 && (
-        <div style={{ marginTop: "1rem", color: "#FF9900" }}>
-          👉 <strong>{emptyAreas.join("、")}</strong>が未入力です
-        </div>
-      )}
-
-      {Object.keys(recommended).length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
-          <strong>各エリア別 積載目安（第2軸10t & 合計19700kg範囲）</strong>
-          <ul>
-            {Object.entries(recommended).map(([key, val]) => (
-              <li key={key}>
-                {key}：{val.toLocaleString()}kg
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
