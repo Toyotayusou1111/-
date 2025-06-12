@@ -12,10 +12,10 @@ export default function App() {
     Object.entries(weights).map(([key, val]) => [key, parseFloat(val) || 0])
   );
 
-  // 第2軸荷重（再学習モデルによる予測）
+  // 第2軸荷重（乖離最小化モデルによる予測）
   const axleWeight =
-    1.1768 * parsed.hinadan +
-    0.3344 * parsed.chukan1 +
+    1.2007 * parsed.hinadan +
+    0.3345 * parsed.chukan1 +
     0.1491 * parsed.chukan2 +
     -0.2180 * parsed.koubu +
     3554.87;
