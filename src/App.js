@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { db, collection, addDoc, serverTimestamp } from "./firebase";
 
 export default function App() {
   const MAX_AXLE_LOAD = 10000;
@@ -65,7 +66,7 @@ export default function App() {
   const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextField = (() => {
+      const nextField = () => {
         const areaIdx = areaLabels.findIndex((a) => a.key === area);
         if (side === "left") return [entryIdx, area, rowIdx, "right"];
         if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
@@ -74,7 +75,7 @@ export default function App() {
         if (entryIdx < entries.length - 1)
           return [entryIdx + 1, "ひな壇", 0, "left"];
         return null;
-      })();
+      }();
 
       if (nextField) {
         const [ei, ak, ri, sd] = nextField;
@@ -91,9 +92,28 @@ export default function App() {
     }
   };
 
+  const saveToCloud = async (entry) => {
+    const { totalWeight, axleWeight } = calculateTotals(entry);
+    const data = {
+      便名: entry.便名,
+      timestamp: serverTimestamp(),
+      totalWeight,
+      axleWeight,
+    };
+    areaLabels.forEach(({ key }) => {
+      data[key] = entry[key];
+    });
+    try {
+      await addDoc(collection(db, "liftLogs"), data);
+      alert("✅ クラウドに保存しました");
+    } catch (err) {
+      alert("❌ 保存に失敗しました");
+    }
+  };
+
   return (
     <div style={{ padding: "1rem" }}>
-      <h2>リフト重量記録（便単位）</h2>
+      <h2>リフト重量記録（最大26便）</h2>
       {entries.map((entry, entryIdx) => {
         const { axleWeight, totalWeight } = calculateTotals(entry);
         return (
@@ -110,52 +130,40 @@ export default function App() {
                     setEntries(updated);
                   }}
                   style={{ marginLeft: "0.5rem", width: "120px" }}
-                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 />
               </label>
             </div>
             {areaLabels.map(({ key, label }) => (
               <div key={key} style={{ marginBottom: "1.5rem" }}>
                 <h4>{label}</h4>
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <label>
-                      助手席側{i + 1}：
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={entry[key][i]?.left || ""}
-                        onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
-                        onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "5rem" }}
-                      />
-                    </label>
-                    <label>
-                      運転席側{i + 1}：
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={entry[key][i]?.right || ""}
-                        onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
-                        onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
-                        style={{ width: "5rem" }}
-                      />
-                    </label>
-                  </div>
-                ))}
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between" }}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} style={{ display: "flex", gap: "0.5rem", width: "48%" }}>
+                      <label>
+                        助手席側{i + 1}：
+                        <input
+                          type="number"
+                          value={entry[key][i]?.left || ""}
+                          onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
+                          ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
+                          style={{ width: "80px" }}
+                        />
+                      </label>
+                      <label>
+                        運転席側{i + 1}：
+                        <input
+                          type="number"
+                          value={entry[key][i]?.right || ""}
+                          onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
+                          ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
+                          style={{ width: "80px" }}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
                 <div>
                   ⇒ エリア合計：<strong>{Math.round(calculateAreaTotal(entry, key)).toLocaleString()}kg</strong>
                 </div>
@@ -164,30 +172,36 @@ export default function App() {
             <div>
               <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
             </div>
-            <div style={{ marginBottom: "1rem" }}>
+            <div>
               <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
             </div>
-            {entryIdx === entries.length - 1 && entries.length < 26 && (
-              <button
-                onClick={addEntry}
-                style={{
-                  display: "block",
-                  margin: "0 auto",
-                  padding: "0.75rem 1.25rem",
-                  fontSize: "1rem",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "0.5rem",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-                }}
-              >
-                ＋便を追加する
-              </button>
-            )}
+            <button
+              onClick={() => saveToCloud(entry)}
+              style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px" }}
+            >
+              ☁ クラウド保存
+            </button>
           </div>
         );
       })}
+      {entries.length < 26 && (
+        <button
+          onClick={addEntry}
+          style={{
+            display: "block",
+            margin: "1rem auto",
+            padding: "0.75rem 1.25rem",
+            fontSize: "1rem",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "0.5rem",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+          }}
+        >
+          ＋便を追加する
+        </button>
+      )}
     </div>
   );
 }
