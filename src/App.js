@@ -156,4 +156,22 @@ export default function App() {
       <button onClick={downloadCSV} style={{ marginBottom: 10 }}>CSVでダウンロード</button>
       <table border="1" cellPadding="6" style={{ borderCollapse:"collapse" }}>
         <thead>
-          <tr><th>便名</th><th>総積載量</th><th>第2軸荷重
+          <tr><th>便名</th><th>総積載量</th><th>第2軸荷重// ✅ Canvasにあるコードの最後にこの続きを追加してください！
+
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((l, i) => (
+              <tr key={i}>
+                <td>{l.便名}</td>
+                <td>{Math.round(l.totalWeight).toLocaleString()}kg</td>
+                <td>{Math.round(l.axleWeight).toLocaleString()}kg</td>
+                <td>{new Date(l.timestamp?.seconds * 1000).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+}
+
