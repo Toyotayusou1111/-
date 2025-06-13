@@ -1,10 +1,14 @@
-import React, { useState, useRef } from "react";
-import { db, collection, addDoc, serverTimestamp } from "./firebase";
+// App.js（エリア未入力部分に「残り目安」を自動表示 + 履歴 + CSV）
+
+import React, { useState, useRef, useEffect } from "react";
+import { db, collection, addDoc, serverTimestamp, getDocs } from "./firebase";
 
 export default function App() {
-  const MAX_AXLE_LOAD = 10000;
-  const MAX_TOTAL_LOAD = 19700;
-  const influences = {
+  // ---------------- 定数 ----------------
+  const MAX_TOTAL_LOAD = 19700;      // 最大総積載量(kg)
+  const MAX_AXLE_LOAD = 10000;       // 第2軸上限(kg)
+
+  const influences = {               // 第2軸への寄与率
     ひな壇: 1.2006,
     中間1: 0.3345,
     中間2: 0.1491,
@@ -19,8 +23,8 @@ export default function App() {
     { key: "後部", label: "後部（5,500kg）" },
   ];
 
+  // ---------------- 状態 ----------------
   const defaultRow = () => Array(4).fill({ left: "", right: "" });
-
   const initialEntry = () => ({
     便名: "",
     ひな壇: defaultRow(),
@@ -30,203 +34,141 @@ export default function App() {
   });
 
   const [entries, setEntries] = useState([initialEntry()]);
+  const [logs, setLogs] = useState([]);        // 履歴一覧
+  const [suggestion, setSuggestion] = useState({}); // 未入力エリア向け目安
   const inputRefs = useRef({});
 
-  const updateCell = (entryIdx, area, index, side, value) => {
-    const updatedEntries = [...entries];
-    const areaRows = [...updatedEntries[entryIdx][area]];
-    areaRows[index] = { ...areaRows[index], [side]: value };
-    updatedEntries[entryIdx][area] = areaRows;
-    setEntries(updatedEntries);
-  };
+  // ---------------- 計算関数 ----------------
+  const parseVal = (v) => parseFloat(v) || 0;
+  const areaTotal = (entry, area) => entry[area].reduce((s, r) => s + parseVal(r.left) + parseVal(r.right), 0);
 
-  const parseValue = (val) => parseFloat(val) || 0;
-
-  const calculateAreaTotal = (entry, area) => {
-    return entry[area].reduce(
-      (sum, row) => sum + parseValue(row.left) + parseValue(row.right),
-      0
-    );
-  };
-
-  const calculateTotals = (entry) => {
-    const totalWeight = areaLabels.reduce(
-      (sum, { key }) => sum + calculateAreaTotal(entry, key),
-      0
-    );
+  const calcTotals = (entry) => {
+    const totalWeight = areaLabels.reduce((s, { key }) => s + areaTotal(entry, key), 0);
     const axleWeight =
-      calculateAreaTotal(entry, "ひな壇") * influences.ひな壇 +
-      calculateAreaTotal(entry, "中間1") * influences.中間1 +
-      calculateAreaTotal(entry, "中間2") * influences.中間2 +
-      calculateAreaTotal(entry, "後部") * influences.後部 +
-      INTERCEPT;
+      areaTotal(entry, "ひな壇") * influences.ひな壇 +
+      areaTotal(entry, "中間1") * influences.中間1 +
+      areaTotal(entry, "中間2") * influences.中間2 +
+      areaTotal(entry, "後部") * influences.後部 + INTERCEPT;
     return { totalWeight, axleWeight };
   };
 
-  const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const nextField = (() => {
-        const areaIdx = areaLabels.findIndex((a) => a.key === area);
-        if (side === "left") return [entryIdx, area, rowIdx, "right"];
-        if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
-        if (areaIdx < areaLabels.length - 1)
-          return [entryIdx, areaLabels[areaIdx + 1].key, 0, "left"];
-        if (entryIdx < entries.length - 1)
-          return [entryIdx + 1, "ひな壇", 0, "left"];
-        return null;
-      })();
-
-      if (nextField) {
-        const [ei, ak, ri, sd] = nextField;
-        const refKey = `${ei}-${ak}-${ri}-${sd}`;
-        const nextInput = inputRefs.current[refKey];
-        if (nextInput) nextInput.focus();
-      }
-    }
+  // ---------------- 入力変更 ----------------
+  const updateCell = (ei, area, ri, side, val) => {
+    const upd = [...entries];
+    const rows = [...upd[ei][area]];
+    rows[ri] = { ...rows[ri], [side]: val };
+    upd[ei][area] = rows;
+    setEntries(upd);
   };
 
-  const addEntry = () => {
-    if (entries.length < 26) {
-      setEntries([...entries, initialEntry()]);
-    }
-  };
+  // ---------------- 目安(残量)計算 ----------------
+  useEffect(() => {
+    const entry = entries[0]; // 1便目のみを対象
+    const { totalWeight } = calcTotals(entry);
+    const remaining = Math.max(MAX_TOTAL_LOAD - totalWeight, 0);
 
+    const empties = areaLabels.filter(({ key }) => areaTotal(entry, key) === 0).map(({ key }) => key);
+    const perArea = empties.length ? Math.floor(remaining / empties.length) : 0;
+
+    const sgs = {};
+    empties.forEach((k) => (sgs[k] = perArea));
+    setSuggestion(sgs);
+  }, [entries]);
+
+  // ---------------- Firestore保存 ----------------
   const saveToCloud = async (entry) => {
-    console.log("▶ クラウド保存処理 開始");
-
-    if (!entry.便名 || entry.便名.trim() === "") {
-      alert("便名を入力してください。");
-      console.warn("❌ 便名が空のため保存中止");
+    if (!entry.便名.trim()) {
+      alert("便名を入力してください");
       return;
     }
-
-    const { totalWeight, axleWeight } = calculateTotals(entry);
-    const data = {
-      便名: entry.便名,
-      timestamp: serverTimestamp(),
-      totalWeight,
-      axleWeight,
-    };
-    areaLabels.forEach(({ key }) => {
-      data[key] = entry[key];
-    });
-
-    try {
-      await addDoc(collection(db, "liftLogs"), data);
-      console.log("✅ Firestore保存成功");
-      alert("✅ クラウドに保存しました！");
-    } catch (err) {
-      console.error("❌ 保存エラー:", err);
-      alert("❌ 保存に失敗しました");
-    }
+    const { totalWeight, axleWeight } = calcTotals(entry);
+    const data = { 便名: entry.便名, timestamp: serverTimestamp(), totalWeight, axleWeight };
+    areaLabels.forEach(({ key }) => (data[key] = entry[key]));
+    await addDoc(collection(db, "liftLogs"), data);
+    alert("✅ クラウドに保存しました！");
   };
 
+  // ---------------- 履歴取得 & CSV ----------------
+  const fetchLogs = async () => {
+    const snap = await getDocs(collection(db, "liftLogs"));
+    setLogs(snap.docs.map((d) => d.data()));
+  };
+  useEffect(() => { fetchLogs(); }, []);
+
+  const downloadCSV = () => {
+    const header = ["便名", "総積載量", "第2軸荷重", "日時"];
+    const rows = logs.map((l) => [
+      l.便名,
+      Math.round(l.totalWeight),
+      Math.round(l.axleWeight),
+      new Date(l.timestamp?.seconds * 1000).toLocaleString(),
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "liftLogs.csv";
+    link.click();
+  };
+
+  // ---------------- UI ----------------
   return (
-    <div style={{ padding: "1rem" }}>
+    <div style={{ padding: 20 }}>
       <h2>リフト重量記録（最大26便）</h2>
-      {entries.map((entry, entryIdx) => {
-        const { axleWeight, totalWeight } = calculateTotals(entry);
+
+      {entries.map((entry, ei) => {
+        const { totalWeight, axleWeight } = calcTotals(entry);
         return (
-          <div
-            key={entryIdx}
-            style={{
-              marginBottom: "2rem",
-              borderBottom: "1px solid #ccc",
-              paddingBottom: "1rem",
-            }}
-          >
-            <div style={{ marginBottom: "1rem" }}>
-              <label>
-                便名：
-                <input
-                  type="text"
-                  value={entry.便名}
-                  onChange={(e) => {
-                    const updated = [...entries];
-                    updated[entryIdx].便名 = e.target.value;
-                    setEntries(updated);
-                  }}
-                  style={{ marginLeft: "0.5rem", width: "120px" }}
-                />
-              </label>
-            </div>
+          <div key={ei} style={{ borderBottom: "1px solid #ccc", marginBottom: 30 }}>
+            <label>
+              便名：<input value={entry.便名} onChange={(e) => { const upd = [...entries]; upd[ei].便名 = e.target.value; setEntries(upd); }} style={{ marginLeft: 8 }} />
+            </label>
+
             {areaLabels.map(({ key, label }) => (
-              <div key={key} style={{ marginBottom: "1.5rem" }}>
+              <div key={key} style={{ marginTop: 20 }}>
                 <h4>{label}</h4>
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
-                    <label>
-                      助手席側{i + 1}：
-                      <input
-                        type="number"
-                        value={entry[key][i]?.left || ""}
-                        onChange={(e) => updateCell(entryIdx, key, i, "left", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "left")}
-                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)}
-                        style={{ width: "100px" }}
-                      />
-                    </label>
-                    <label>
-                      運転席側{i + 1}：
-                      <input
-                        type="number"
-                        value={entry[key][i]?.right || ""}
-                        onChange={(e) => updateCell(entryIdx, key, i, "right", e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, entryIdx, key, i, "right")}
-                        ref={(el) => (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)}
-                        style={{ width: "100px" }}
-                      />
-                    </label>
+                {/* 4行 */}
+                {[0, 1, 2, 3].map((ri) => (
+                  <div key={ri} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+                    <input type="number" placeholder="助手席側" style={{ width: 90 }}
+                      value={entry[key][ri].left} onChange={(e) => updateCell(ei, key, ri, "left", e.target.value)} />
+                    <input type="number" placeholder="運転席側" style={{ width: 90 }}
+                      value={entry[key][ri].right} onChange={(e) => updateCell(ei, key, ri, "right", e.target.value)} />
                   </div>
                 ))}
-                <div>
-                  ⇒ エリア合計：<strong>{Math.round(calculateAreaTotal(entry, key)).toLocaleString()}kg</strong>
+                <div>⇒ エリア合計：<strong>{areaTotal(entry, key).toLocaleString()}kg</strong>
+                  {suggestion[key] !== undefined && areaTotal(entry, key) === 0 && (
+                    <span style={{ color: "#888", marginLeft: 10 }}>(目安 {suggestion[key].toLocaleString()}kg)</span>
+                  )}
                 </div>
               </div>
             ))}
-            <div>
-              <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg
-            </div>
-            <div>
-              <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg
-            </div>
-            <button
-              onClick={() => saveToCloud(entry)}
-              style={{
-                marginTop: "0.5rem",
-                padding: "0.5rem 1rem",
-                backgroundColor: "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-              }}
-            >
-              ☁ クラウド保存
-            </button>
+
+            <p><strong>第2軸荷重：</strong>{Math.round(axleWeight).toLocaleString()}kg</p>
+            <p><strong>総積載量：</strong>{Math.round(totalWeight).toLocaleString()}kg</p>
+            <button onClick={() => saveToCloud(entry)} style={{ background: "#28a745", color: "#fff", padding: "6px 12px" }}>☁ クラウド保存</button>
           </div>
         );
       })}
-      {entries.length < 26 && (
-        <button
-          onClick={addEntry}
-          style={{
-            display: "block",
-            marginTop: "1rem",
-            marginLeft: "0",
-            marginRight: "auto",
-            padding: "0.75rem 1.25rem",
-            fontSize: "1rem",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "0.5rem",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-          }}
-        >
-          ＋便を追加する
-        </button>
-      )}
+
+      <button onClick={() => setEntries([...entries, initialEntry()])} style={{ background: "#007bff", color: "#fff", padding: "8px 14px" }}>＋便を追加する</button>
+
+      <hr style={{ margin: "40px 0" }} />
+      <h3>履歴一覧</h3>
+      <button onClick={downloadCSV} style={{ marginBottom: 10 }}>CSVでダウンロード</button>
+      <table border="1" cellPadding="6">
+        <thead><tr><th>便名</th><th>総積載量</th><th>第2軸荷重</th><th>記録日時</th></tr></thead>
+        <tbody>
+          {logs.map((l, i) => (
+            <tr key={i}>
+              <td>{l.便名}</td>
+              <td>{Math.round(l.totalWeight).toLocaleString()}kg</td>
+              <td>{Math.round(l.axleWeight).toLocaleString()}kg</td>
+              <td>{new Date(l.timestamp?.seconds * 1000).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
