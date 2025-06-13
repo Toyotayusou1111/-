@@ -1,4 +1,4 @@
-// App.js（エリア目安 + 履歴 + CSV + getDocs import 修正版）
+// App.js（エリア目安 + 履歴 + CSV + getDocs import / JSX閉じタグ修正 完全版）
 
 import React, { useState, useRef, useEffect } from "react";
 import { db } from "./firebase";
@@ -41,10 +41,10 @@ export default function App() {
   const calcTotals = (entry) => {
     const totalWeight = areaLabels.reduce((s, { key }) => s + areaTotal(entry, key), 0);
     const axleWeight  =
-      areaTotal(entry, "ひな壇") * influences["ひな壇"] +
-      areaTotal(entry, "中間1") * influences["中間1"] +
-      areaTotal(entry, "中間2") * influences["中間2"] +
-      areaTotal(entry, "後部")   * influences["後部"]   + INTERCEPT;
+      areaTotal(entry, "ひな壇") * influences.ひな壇 +
+      areaTotal(entry, "中間1") * influences.中間1 +
+      areaTotal(entry, "中間2") * influences.中間2 +
+      areaTotal(entry, "後部")   * influences.後部   + INTERCEPT;
     return { totalWeight, axleWeight };
   };
 
@@ -154,5 +154,6 @@ export default function App() {
       <hr style={{ margin: "40px 0" }} />
       <h3>履歴一覧</h3>
       <button onClick={downloadCSV} style={{ marginBottom: 10 }}>CSVでダウンロード</button>
-      <table border="1" cellPadding="6">
-        <thead><tr><th>便名
+      <table border="1" cellPadding="6" style={{ borderCollapse:"collapse" }}>
+        <thead>
+          <tr><th>便名</th><th>総積載量</th><th>第2軸荷重
