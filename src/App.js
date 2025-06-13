@@ -1,4 +1,4 @@
-// App.js（完全修正版：履歴テーブルのJSXタグ補完済み）
+// App.js（再修正版：目安重量が入力値に応じて動的に変化）
 
 import React, { useState, useRef, useEffect } from "react";
 import { db } from "./firebase";
@@ -23,7 +23,6 @@ export default function App() {
   const [entries, setEntries] = useState([initialEntry()]);
   const [logs, setLogs] = useState([]);
   const [suggestion, setSuggestion] = useState({});
-  const inputRefs = useRef({});
 
   const parseVal = (v) => parseFloat(v) || 0;
   const areaTotal = (entry, area) => entry[area].reduce((s, r) => s + parseVal(r.left) + parseVal(r.right), 0);
@@ -51,10 +50,14 @@ export default function App() {
     const { totalWeight } = calcTotals(entry);
     const remaining = Math.max(MAX_TOTAL_LOAD - totalWeight, 0);
     const emptyAreas = areaLabels.filter(({ key }) => areaTotal(entry, key) === 0).map(({ key }) => key);
-    const perArea = emptyAreas.length ? Math.floor(remaining / emptyAreas.length) : 0;
-    const sgs = {};
-    emptyAreas.forEach((k) => { sgs[k] = perArea });
-    setSuggestion(sgs);
+    const filledAreas = areaLabels.filter(({ key }) => areaTotal(entry, key) > 0);
+    const remainingInfluence = emptyAreas.reduce((sum, key) => sum + influences[key], 0);
+    const suggestionObj = {};
+    emptyAreas.forEach((key) => {
+      const portion = influences[key] / remainingInfluence;
+      suggestionObj[key] = Math.round(remaining * portion);
+    });
+    setSuggestion(suggestionObj);
   }, [entries]);
 
   const saveToCloud = async (entry) => {
@@ -100,7 +103,11 @@ export default function App() {
           <div key={ei} style={{ borderBottom: "1px solid #ccc", marginBottom: 30 }}>
             <label>
               便名：
-              <input value={entry.便名} onChange={(e) => { const u = [...entries]; u[ei].便名 = e.target.value; setEntries(u); }} style={{ marginLeft: 8 }} />
+              <input value={entry.便名} onChange={(e) => {
+                const u = [...entries];
+                u[ei].便名 = e.target.value;
+                setEntries(u);
+              }} style={{ marginLeft: 8 }} />
             </label>
             {areaLabels.map(({ key, label }) => (
               <div key={key} style={{ marginTop: 20 }}>
