@@ -1,19 +1,5 @@
-// === App.js（最終確定版＋履歴一覧＋CSV出力＋スマホ縦移動対応＋手動選択対応） ===
-import React, { useState, useRef, useEffect } from "react";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// === App.js（最終確定版：クラウド保存機能削除） ===
+import React, { useState, useRef } from "react";
 
 export default function App() {
   const MAX_AXLE = 10000;
@@ -31,7 +17,6 @@ export default function App() {
   const newEntry = () => ({ 便名: "", ひな壇: blankRows(), 中間1: blankRows(), 中間2: blankRows(), 後部: blankRows() });
 
   const [entries, setEntries] = useState([newEntry()]);
-  const [logs, setLogs] = useState([]);
   const refs = useRef({});
 
   const n = (v) => parseFloat(v) || 0;
@@ -75,27 +60,8 @@ export default function App() {
     return rows.join("\n");
   };
 
-  const saveToCloud = async () => {
-    for (const en of entries) {
-      await addDoc(collection(db, "entries"), en);
-    }
-    alert("✅ クラウド保存しました");
-    fetchLogs();
-  };
-
-  const fetchLogs = async () => {
-    const snap = await getDocs(collection(db, "entries"));
-    const result = [];
-    snap.forEach((doc) => result.push(doc.data()));
-    setLogs(result);
-  };
-
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
   const downloadCSV = () => {
-    const blob = new Blob(["\uFEFF" + toCSV(logs)], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + toCSV(entries)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -154,14 +120,7 @@ export default function App() {
       })}
       <button onClick={() => setEntries([...entries, newEntry()])}>＋便を追加する</button>
       &nbsp;
-      <button onClick={saveToCloud}>📥 クラウド保存</button>
-      <h3>📋 保存済み履歴一覧</h3>
       <button onClick={downloadCSV}>📄 CSVでダウンロード</button>
-      <ul>
-        {logs.map((log, i) => (
-          <li key={i}>{log.便名 || `便${i + 1}`}</li>
-        ))}
-      </ul>
     </div>
   );
 }
