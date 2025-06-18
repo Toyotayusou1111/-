@@ -1,4 +1,4 @@
-// === App.js（最終確定版＋履歴一覧＋CSV出力対応＋UTF-8 BOM修正＋空データ防止） ===
+// === App.js（最終確定版＋履歴一覧＋CSV出力修正） ===
 import React, { useState, useRef, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
@@ -18,7 +18,7 @@ const db = getFirestore(app);
 export default function App() {
   const MAX_AXLE = 10000;
   const MAX_TOTAL = 19700;
-  const COEF = { ひな壇: 0.6817, 中間1: 0.6070, 中間2: 0.0975, 後部: 0.0433 };
+  const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
   const INTERCEPT = 3317.33;
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
@@ -26,6 +26,7 @@ export default function App() {
     { key: "中間2", label: "中間②（6,400kg）" },
     { key: "後部", label: "後部（5,500kg）" },
   ];
+
   const blankRows = () => Array(4).fill({ left: "", right: "" });
   const newEntry = () => ({ 便名: "", ひな壇: blankRows(), 中間1: blankRows(), 中間2: blankRows(), 後部: blankRows() });
 
@@ -59,30 +60,30 @@ export default function App() {
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
 
   const toCSV = (data) => {
-    const rows = ["\uFEFF便名,エリア,助手席1,運転席1,助手席2,運転席2,助手席3,運転席3,助手席4,運転席4,合計,第2軸荷重,総積載"];
+    const rows = [[
+      "便名", "エリア", "助手席1", "運転席1", "助手席2", "運転席2", "助手席3", "運転席3", "助手席4", "運転席4", "合計", "第2軸荷重", "総積載"
+    ].join(",")];
+
     data.forEach((en) => {
       const { total, axle } = totals(en);
       areaMeta.forEach(({ key }) => {
-        const r = [en.便名, key];
-        en[key].forEach((row) => {
-          r.push(row.left || "", row.right || "");
+        const areaRows = en[key];
+        const row = [en.便名, key];
+        areaRows.forEach((r) => {
+          row.push(r.left || "");
+          row.push(r.right || "");
         });
-        r.push(areaSum(en, key));
-        r.push("", "");
-        rows.push(r.join(","));
+        row.push(areaSum(en, key));
+        row.push("", "");
+        rows.push(row.join(","));
       });
       rows.push(["", "合計", "", "", "", "", "", "", "", "", "", Math.round(axle), Math.round(total)].join(","));
     });
     return rows.join("\n");
   };
 
-  const isEntryEmpty = (en) => {
-    return !en.便名 && areaMeta.every(({ key }) => en[key].every(r => !r.left && !r.right));
-  };
-
   const saveToCloud = async () => {
     for (const en of entries) {
-      if (isEntryEmpty(en)) continue;
       await addDoc(collection(db, "entries"), en);
     }
     alert("✅ クラウド保存しました");
@@ -101,7 +102,7 @@ export default function App() {
   }, []);
 
   const downloadCSV = () => {
-    const blob = new Blob([toCSV(logs)], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + toCSV(logs)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
