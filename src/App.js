@@ -1,3 +1,4 @@
+// === App.js (UIそのまま・Enterで縦移動＋×ボタン付き) ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -58,7 +59,12 @@ export default function App() {
   const next = (e, ei, k, ri, side) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    const tgt = side === "left" ? [ei, k, ri, "right"] : ri < 3 ? [ei, k, ri + 1, "left"] : null;
+    const tgt = (() => {
+      if (ri < 3) return [ei, k, ri + 1, side];
+      const areaIdx = areaMeta.findIndex((a) => a.key === k);
+      if (areaIdx < areaMeta.length - 1) return [ei, areaMeta[areaIdx + 1].key, 0, side];
+      return null;
+    })();
     if (tgt) refs.current[tgt.join("-")]?.focus();
   };
 
