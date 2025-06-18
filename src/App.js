@@ -1,59 +1,109 @@
-// === App.js（最終確定版・メール送信機能除外・便追加ボタン復活） ===
-import React, { useState, useRef } from "react";
+// === App.js（最終確定版＋履歴一覧＋CSV出力対応） ===
+import React, { useState, useRef, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 export default function App() {
   const MAX_AXLE = 10000;
   const MAX_TOTAL = 19700;
-
-  const COEF = {
-    ひな壇: 0.6817,
-    中間1: 0.6070,
-    中間2: 0.0975,
-    後部: 0.0433,
-  };
+  const COEF = { ひな壇: 0.6817, 中間1: 0.6070, 中間2: 0.0975, 後部: 0.0433 };
   const INTERCEPT = 3317.33;
-
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
     { key: "中間1", label: "中間①（4,100kg）" },
     { key: "中間2", label: "中間②（6,400kg）" },
     { key: "後部", label: "後部（5,500kg）" },
   ];
-
   const blankRows = () => Array(4).fill({ left: "", right: "" });
   const newEntry = () => ({ 便名: "", ひな壇: blankRows(), 中間1: blankRows(), 中間2: blankRows(), 後部: blankRows() });
 
   const [entries, setEntries] = useState([newEntry()]);
+  const [logs, setLogs] = useState([]);
   const refs = useRef({});
 
   const n = (v) => parseFloat(v) || 0;
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
-
   const totals = (en) => {
     const total = areaMeta.reduce((s, a) => s + areaSum(en, a.key), 0);
     const axle = areaSum(en, "ひな壇") * COEF.ひな壇 + areaSum(en, "中間1") * COEF.中間1 + areaSum(en, "中間2") * COEF.中間2 + areaSum(en, "後部") * COEF.後部 + INTERCEPT;
     return { total, axle };
   };
 
-  const setVal = (ei, k, ri, side, v) =>
-    setEntries((p) => {
-      const cp = [...p];
-      const rows = cp[ei][k].map((r) => ({ ...r }));
-      rows[ri][side] = v;
-      cp[ei][k] = rows;
-      return cp;
-    });
+  const setVal = (ei, k, ri, side, v) => setEntries((p) => {
+    const cp = [...p];
+    const rows = cp[ei][k].map((r) => ({ ...r }));
+    rows[ri][side] = v;
+    cp[ei][k] = rows;
+    return cp;
+  });
 
   const next = (e, ei, k, ri, side) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    const tgt = side === "right"
-      ? ri < 3 ? [ei, k, ri + 1, "left"] : null
-      : [ei, k, ri, "right"];
+    const tgt = side === "left" ? [ei, k, ri, "right"] : (ri < 3 ? [ei, k, ri + 1, "left"] : null);
     if (tgt) refs.current[tgt.join("-")]?.focus();
   };
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
+
+  const toCSV = (data) => {
+    const rows = ["便名,エリア,助手席1,運転席1,助手席2,運転席2,助手席3,運転席3,助手席4,運転席4,合計,第2軸荷重,総積載"];
+    data.forEach((en) => {
+      const { total, axle } = totals(en);
+      areaMeta.forEach(({ key }) => {
+        const r = [en.便名, key];
+        en[key].forEach((row) => {
+          r.push(row.left || "", row.right || "");
+        });
+        r.push(areaSum(en, key));
+        r.push("", "");
+        rows.push(r.join(","));
+      });
+      rows.push(["", "合計", "", "", "", "", "", "", "", "", "", Math.round(axle), Math.round(total)].join(","));
+    });
+    return rows.join("\n");
+  };
+
+  const saveToCloud = async () => {
+    for (const en of entries) {
+      await addDoc(collection(db, "entries"), en);
+    }
+    alert("✅ クラウド保存しました");
+    fetchLogs();
+  };
+
+  const fetchLogs = async () => {
+    const snap = await getDocs(collection(db, "entries"));
+    const result = [];
+    snap.forEach((doc) => result.push(doc.data()));
+    setLogs(result);
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const downloadCSV = () => {
+    const blob = new Blob([toCSV(logs)], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "履歴一覧.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
@@ -106,6 +156,15 @@ export default function App() {
         );
       })}
       <button onClick={() => setEntries([...entries, newEntry()])}>＋便を追加する</button>
+      &nbsp;
+      <button onClick={saveToCloud}>📥 クラウド保存</button>
+      <h3>📋 保存済み履歴一覧</h3>
+      <button onClick={downloadCSV}>📄 CSVでダウンロード</button>
+      <ul>
+        {logs.map((log, i) => (
+          <li key={i}>{log.便名 || `便${i + 1}`}</li>
+        ))}
+      </ul>
     </div>
   );
 }
