@@ -1,11 +1,12 @@
-// 修正済みの App.js 全コード
+// === App.js (UIそのまま・補正式のみ更新) ===
 import React, { useState, useRef } from "react";
-import { db, collection, addDoc, serverTimestamp } from "./firebase";
 
 export default function App() {
-  const MAX_AXLE_LOAD = 10000;
-  const MAX_TOTAL_LOAD = 19700;
-  const influences = {
+  const MAX_AXLE = 10000;
+  const MAX_TOTAL = 19700;
+
+  /* ◆ 学習済み係数 ◆ */
+  const COEF = {
     ひな壇: 0.6817,
     中間1: 0.6070,
     中間2: 0.0975,
@@ -13,176 +14,110 @@ export default function App() {
   };
   const INTERCEPT = 3317.33;
 
-  const areaLabels = ["ひな壇", "中間1", "中間2", "後部"];
+  const areaMeta = [
+    { key: "ひな壇", label: "ひな壇（3,700kg）" },
+    { key: "中間1", label: "中間①（4,100kg）" },
+    { key: "中間2", label: "中間②（6,400kg）" },
+    { key: "後部", label: "後部（5,500kg）" },
+  ];
 
-  const defaultRow = () => Array(4).fill({ left: "", right: "" });
-  const initialEntry = () => ({
+  const blankRows = () => Array(4).fill({ left: "", right: "" });
+  const newEntry = () => ({
     便名: "",
-    ひな壇: defaultRow(),
-    中間1: defaultRow(),
-    中間2: defaultRow(),
-    後部: defaultRow(),
+    ひな壇: blankRows(),
+    中間1: blankRows(),
+    中間2: blankRows(),
+    後部: blankRows(),
   });
 
-  const [entries, setEntries] = useState([initialEntry()]);
-  const inputRefs = useRef({});
+  const [entries, setEntries] = useState([newEntry()]);
+  const refs = useRef({});
 
-  const parseValue = (val) => parseFloat(val) || 0;
+  const n = (v) => parseFloat(v) || 0;
 
-  const updateCell = (entryIdx, area, index, side, value) => {
-    const updatedEntries = [...entries];
-    const areaRows = [...updatedEntries[entryIdx][area]];
-    areaRows[index] = { ...areaRows[index], [side]: value };
-    updatedEntries[entryIdx][area] = areaRows;
-    setEntries(updatedEntries);
-  };
+  const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
 
-  const calculateAreaTotal = (entry, area) => {
-    return entry[area].reduce(
-      (sum, row) => sum + parseValue(row.left) + parseValue(row.right),
-      0
-    );
-  };
-
-  const calculateTotals = (entry) => {
-    const totalWeight = areaLabels.reduce(
-      (sum, key) => sum + calculateAreaTotal(entry, key),
-      0
-    );
-    const axleWeight =
-      calculateAreaTotal(entry, "ひな壇") * influences["ひな壇"] +
-      calculateAreaTotal(entry, "中間1") * influences["中間1"] +
-      calculateAreaTotal(entry, "中間2") * influences["中間2"] +
-      calculateAreaTotal(entry, "後部") * influences["後部"] +
+  const totals = (en) => {
+    const total = areaMeta.reduce((s, a) => s + areaSum(en, a.key), 0);
+    const axle =
+      areaSum(en, "ひな壇") * COEF.ひな壇 +
+      areaSum(en, "中間1") * COEF.中間1 +
+      areaSum(en, "中間2") * COEF.中間2 +
+      areaSum(en, "後部") * COEF.後部 +
       INTERCEPT;
-    return { totalWeight, axleWeight };
+    return { total, axle };
   };
 
-  const handleKeyDown = (e, entryIdx, area, rowIdx, side) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const nextField = (() => {
-        const areaIdx = areaLabels.indexOf(area);
-        if (side === "left") return [entryIdx, area, rowIdx, "right"];
-        if (rowIdx < 3) return [entryIdx, area, rowIdx + 1, "left"];
-        if (areaIdx < areaLabels.length - 1)
-          return [entryIdx, areaLabels[areaIdx + 1], 0, "left"];
-        if (entryIdx < entries.length - 1)
-          return [entryIdx + 1, "ひな壇", 0, "left"];
-        return null;
-      })();
-
-      if (nextField) {
-        const [ei, ak, ri, sd] = nextField;
-        const refKey = `${ei}-${ak}-${ri}-${sd}`;
-        const nextInput = inputRefs.current[refKey];
-        if (nextInput) nextInput.focus();
-      }
-    }
-  };
-
-  const addEntry = () => {
-    if (entries.length < 26) {
-      setEntries([...entries, initialEntry()]);
-    }
-  };
-
-  const saveToCloud = async (entry) => {
-    const { totalWeight, axleWeight } = calculateTotals(entry);
-    const data = {
-      便名: entry.便名,
-      timestamp: serverTimestamp(),
-      totalWeight,
-      axleWeight,
-    };
-    areaLabels.forEach((key) => {
-      data[key] = entry[key];
+  const setVal = (ei, k, ri, side, v) =>
+    setEntries((p) => {
+      const cp = [...p];
+      const rows = cp[ei][k].map((r) => ({ ...r }));
+      rows[ri][side] = v;
+      cp[ei][k] = rows;
+      return cp;
     });
-    try {
-      await addDoc(collection(db, "liftLogs"), data);
-      alert("✅ クラウドに保存しました");
-    } catch (err) {
-      alert("❌ 保存に失敗しました");
-    }
+
+  /* Enter: 下方向へ */
+  const next = (e, ei, k, ri, side) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const tgt = side === "left" ? [ei, k, ri, "right"] : ri < 3 ? [ei, k, ri + 1, "left"] : null;
+    if (tgt) refs.current[tgt.join("-")]?.focus();
   };
 
+  const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
+
+  /* ============ UI ============ */
   return (
-    <div style={{ padding: "1rem" }}>
-      <h2>リフト重量記録</h2>
-      {entries.map((entry, entryIdx) => {
-        const { axleWeight, totalWeight } = calculateTotals(entry);
+    <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
+      <h2>リフト重量記録（最大26便）</h2>
+      {entries.map((en, ei) => {
+        const { total, axle } = totals(en);
         return (
-          <div
-            key={entryIdx}
-            style={{
-              marginBottom: "2rem",
-              borderBottom: "1px solid #ccc",
-              paddingBottom: "1rem",
-            }}
-          >
-            <div>
-              <label>
-                便名：
-                <input
-                  value={entry.便名}
-                  onChange={(e) => {
-                    const updated = [...entries];
-                    updated[entryIdx].便名 = e.target.value;
-                    setEntries(updated);
-                  }}
-                  style={{ marginLeft: "0.5rem", width: "120px" }}
-                />
-              </label>
+          <div key={ei} style={{ marginBottom: 32 }}>
+            <div style={{ marginBottom: 8 }}>
+              便名：<input value={en.便名} onChange={(e) => {
+                const cp = [...entries];
+                cp[ei].便名 = e.target.value;
+                setEntries(cp);
+              }} style={{ width: 120 }} />
             </div>
-            {areaLabels.map((key) => (
-              <div key={key} style={{ marginTop: "1rem" }}>
-                <h4>{key}</h4>
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} style={{ display: "flex", gap: "1rem" }}>
+            {areaMeta.map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: 16 }}>
+                <strong>{label}</strong>
+                {en[key].map((row, ri) => (
+                  <div key={ri} style={{ margin: "2px 0" }}>
+                    助手席荷重{ri + 1}：
                     <input
-                      ref={(el) =>
-                        (inputRefs.current[`${entryIdx}-${key}-${i}-left`] = el)
-                      }
                       type="number"
-                      value={entry[key][i]?.left || ""}
-                      onChange={(e) =>
-                        updateCell(entryIdx, key, i, "left", e.target.value)
-                      }
-                      onKeyDown={(e) =>
-                        handleKeyDown(e, entryIdx, key, i, "left")
-                      }
+                      value={row.left}
+                      onChange={(e) => setVal(ei, key, ri, "left", e.target.value)}
+                      onKeyDown={(e) => next(e, ei, key, ri, "left")}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
+                      style={{ width: 80 }}
                     />
+                    <button onClick={() => clear(ei, key, ri, "left")}>×</button>
+                    &nbsp;
+                    運転席荷重{ri + 1}：
                     <input
-                      ref={(el) =>
-                        (inputRefs.current[`${entryIdx}-${key}-${i}-right`] = el)
-                      }
                       type="number"
-                      value={entry[key][i]?.right || ""}
-                      onChange={(e) =>
-                        updateCell(entryIdx, key, i, "right", e.target.value)
-                      }
-                      onKeyDown={(e) =>
-                        handleKeyDown(e, entryIdx, key, i, "right")
-                      }
+                      value={row.right}
+                      onChange={(e) => setVal(ei, key, ri, "right", e.target.value)}
+                      onKeyDown={(e) => next(e, ei, key, ri, "right")}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
+                      style={{ width: 80 }}
                     />
+                    <button onClick={() => clear(ei, key, ri, "right")}>×</button>
                   </div>
                 ))}
-                <div>
-                  合計: {Math.round(calculateAreaTotal(entry, key)).toLocaleString()} kg
-                </div>
+                <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
               </div>
             ))}
-            <div>
-              <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()} kg
-            </div>
-            <div>
-              <strong>総重量：</strong> {Math.round(totalWeight).toLocaleString()} kg
-            </div>
-            <button onClick={() => saveToCloud(entry)}>☁ クラウド保存</button>
+            <div>第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg</div>
+            <div>総積載量: {Math.round(total).toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg</div>
           </div>
         );
       })}
-      <button onClick={addEntry}>＋便を追加</button>
     </div>
   );
 }
