@@ -1,4 +1,4 @@
-// === App.js（最終確定版＋履歴一覧＋CSV出力修正） ===
+// === App.js（最終確定版＋履歴一覧＋CSV出力＋スマホ縦移動対応） ===
 import React, { useState, useRef, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
@@ -50,11 +50,16 @@ export default function App() {
     return cp;
   });
 
-  const next = (e, ei, k, ri, side) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
+  const focusNext = (ei, k, ri, side) => {
     const tgt = side === "left" ? [ei, k, ri, "right"] : (ri < 3 ? [ei, k, ri + 1, "left"] : null);
-    if (tgt) refs.current[tgt.join("-")]?.focus();
+    if (tgt) setTimeout(() => refs.current[tgt.join("-")]?.focus(), 100);
+  };
+
+  const next = (e, ei, k, ri, side) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      focusNext(ei, k, ri, side);
+    }
   };
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
@@ -134,7 +139,10 @@ export default function App() {
                     <input
                       type="number"
                       value={row.left}
-                      onChange={(e) => setVal(ei, key, ri, "left", e.target.value)}
+                      onChange={(e) => {
+                        setVal(ei, key, ri, "left", e.target.value);
+                        focusNext(ei, key, ri, "left");
+                      }}
                       onKeyDown={(e) => next(e, ei, key, ri, "left")}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
                       style={{ width: 80 }}
@@ -145,7 +153,10 @@ export default function App() {
                     <input
                       type="number"
                       value={row.right}
-                      onChange={(e) => setVal(ei, key, ri, "right", e.target.value)}
+                      onChange={(e) => {
+                        setVal(ei, key, ri, "right", e.target.value);
+                        focusNext(ei, key, ri, "right");
+                      }}
                       onKeyDown={(e) => next(e, ei, key, ri, "right")}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
                       style={{ width: 80 }}
