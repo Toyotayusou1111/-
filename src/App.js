@@ -1,4 +1,4 @@
-// === App.js（最終確定版：CSV・クラウド保存機能削除） ===
+// === App.js（最終確定版：CSV・クラウド保存削除・下移動復活） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -37,6 +37,16 @@ export default function App() {
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
 
+  const handleKeyDown = (e, ei, k, ri, side) => {
+    if (e.key === "Enter") {
+      const nextIndex = ri + 1;
+      const refKey = `${ei}-${k}-${nextIndex}-${side}`;
+      if (refs.current[refKey]) {
+        refs.current[refKey].focus();
+      }
+    }
+  };
+
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
       <h2>リフト重量記録（最大26便）</h2>
@@ -61,6 +71,7 @@ export default function App() {
                       type="number"
                       value={row.left}
                       onChange={(e) => setVal(ei, key, ri, "left", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "left")}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
                       style={{ width: 80 }}
                     />
@@ -71,6 +82,7 @@ export default function App() {
                       type="number"
                       value={row.right}
                       onChange={(e) => setVal(ei, key, ri, "right", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "right")}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
                       style={{ width: 80 }}
                     />
