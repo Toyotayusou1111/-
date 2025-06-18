@@ -1,112 +1,237 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef } from "react";
+import { db, collection, addDoc, serverTimestamp } from "./firebase";
 
-/* ---- 設定値（必要に応じて調整してください） ---- */
-const AREA_NAMES     = ["ひな壇", "中間①", "中間②", "後部"];
-const AREA_CAPACITY  = [3700, 4100, 6400, 5500];   // 各エリアの定格積載量
-const AXLE2_COEFF    = [0.45, 0.58, 0.66, 0.72];   // 第2軸への影響係数
-const MAX_TOTAL      = 19700;                      // 総重量上限
-const MAX_AXLE2      = 10000;                      // 第2軸上限
-const SEATS_PER_AREA = 8;                          // 入力欄数（助手4 + 運転4）
-/* ---------------------------------------------- */
+/*======= 設定（比率・制限値） =======*/
+const MAX_AXLE_LOAD = 10000;
+const MAX_TOTAL_LOAD = 19700;
+
+const influences = {
+  ひな壇: 1.2006,
+  中間1: 0.3345,
+  中間2: 0.1491,
+  後部: -0.218,
+};
+const INTERCEPT = 3554.87;
+
+const IDEAL_RATIO = {
+  ひな壇: 0.202,
+  中間1: 0.205,
+  中間2: 0.326,
+  後部:  0.267,
+};
+
+const areaLabels = [
+  { key: "ひな壇", label: "ひな壇（3,700kg）" },
+  { key: "中間1", label: "中間①（4,100kg）" },
+  { key: "中間2", label: "中間②（6,400kg）" },
+  { key: "後部",   label: "後部（5,500kg）" },
+];
+/*==================================*/
+
+const defaultRow = () => Array(4).fill({ left: "", right: "" });
+
+const initialEntry = () => ({
+  便名: "",
+  ひな壇: defaultRow(),
+  中間1: defaultRow(),
+  中間2: defaultRow(),
+  後部: defaultRow(),
+});
 
 export default function App() {
-  /* 各エリア×各席の入力値を文字列で保持 */
-  const [weights, setWeights] = useState(
-    Array(4).fill().map(() => Array(SEATS_PER_AREA).fill(""))
-  );
+  const [entries, setEntries] = useState([initialEntry()]);
+  const inputRefs = useRef({});
 
-  /* 計算結果（各エリア合計・推奨値・総積載・第2軸） */
-  const [areaTotals, setAreaTotals] = useState([0, 0, 0, 0]);
-  const [suggested,  setSuggested]  = useState([0, 0, 0, 0]);
-  const [axle2Total, setAxle2Total] = useState(0);
-  const [grandTotal, setGrandTotal] = useState(0);
+  const parseNum = (v) => parseFloat(v) || 0;
 
-  /* 入力変化ごとに再計算 */
-  useEffect(() => {
-    const newAreaTotals = weights.map(area =>
-      area.reduce((sum, v) => sum + (+v || 0), 0)
-    );
-    setAreaTotals(newAreaTotals);
+  const areaSum = (entry, area) =>
+    entry[area].reduce((sum, row) => sum + parseNum(row.left) + parseNum(row.right), 0);
 
-    const axle2 = newAreaTotals.reduce(
-      (sum, w, i) => sum + w * AXLE2_COEFF[i], 0
-    );
-    setAxle2Total(Math.round(axle2));
-
-    const total = newAreaTotals.reduce((a, b) => a + b, 0);
-    setGrandTotal(total);
-
-    setSuggested(calcSuggestedWeights(newAreaTotals, axle2, total));
-  }, [weights]);
-
-  /* 推奨値計算（後部→中間②→中間① の順で割当） */
-  const calcSuggestedWeights = (currTotals, axle2Now, totalNow) => {
-    const s = [0, 0, 0, 0];
-    let remTotal = MAX_TOTAL - totalNow;
-    let remAxle2 = MAX_AXLE2 - axle2Now;
-    if (remTotal <= 0 || remAxle2 <= 0) return s;
-
-    const priority = [3, 2, 1];               // エリア index の優先順
-    for (const idx of priority) {
-      if (currTotals[idx] !== 0) continue;    // すでに重量入力済みなら飛ばす
-      const maxByCap   = AREA_CAPACITY[idx];
-      const maxByAxle2 = remAxle2 / AXLE2_COEFF[idx];
-      const addable    = Math.floor(Math.min(maxByCap, remTotal, maxByAxle2));
-      s[idx]    = addable;
-      remTotal -= addable;
-      remAxle2 -= addable * AXLE2_COEFF[idx];
-      if (remTotal <= 0 || remAxle2 <= 0) break;
-    }
-    return s;
+  const totals = (entry) => {
+    const totalWeight = areaLabels.reduce((sum, { key }) => sum + areaSum(entry, key), 0);
+    const axleWeight =
+      areaSum(entry, "ひな壇") * influences.ひな壇 +
+      areaSum(entry, "中間1") * influences.中間1 +
+      areaSum(entry, "中間2") * influences.中間2 +
+      areaSum(entry, "後部") * influences.後部 +
+      INTERCEPT;
+    return { totalWeight, axleWeight };
   };
 
-  /* 入力ハンドラ */
-  const handleChange = (areaIdx, seatIdx, value) => {
-    setWeights(prev => {
-      const next = prev.map(row => [...row]);
-      next[areaIdx][seatIdx] = value;
-      return next;
+  const suggest = (entry, areaKey) => {
+    const { totalWeight } = totals(entry);
+    const rem = MAX_TOTAL_LOAD - totalWeight;
+    if (rem <= 0) return 0;
+    const ideal = MAX_TOTAL_LOAD * IDEAL_RATIO[areaKey];
+    const current = areaSum(entry, areaKey);
+    const diff = ideal - current;
+    return diff > 0 ? Math.floor(Math.min(diff, rem)) : 0;
+  };
+
+  const updateCell = (ei, area, rowIdx, side, value) => {
+    setEntries((prev) => {
+      const copy = [...prev];
+      const rows = [...copy[ei][area]];
+      rows[rowIdx] = { ...rows[rowIdx], [side]: value };
+      copy[ei][area] = rows;
+      return copy;
     });
   };
 
-  /* 画面描画 */
+  const handleKeyDown = (e, ei, area, rowIdx, side) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const aIdx = areaLabels.findIndex((a) => a.key === area);
+    const next =
+      side === "left" ? [ei, area, rowIdx, "right"] :
+      rowIdx < 3 ? [ei, area, rowIdx + 1, "left"] :
+      aIdx < areaLabels.length - 1 ? [ei, areaLabels[aIdx + 1].key, 0, "left"] :
+      ei < entries.length - 1 ? [ei + 1, "ひな壇", 0, "left"] : null;
+
+    if (next) {
+      const refKey = next.join("-");
+      const el = inputRefs.current[refKey];
+      if (el) el.focus();
+    }
+  };
+
   return (
-    <div>
+    <div style={{ padding: "1rem" }}>
       <h2>リフト重量記録（最大26便）</h2>
 
-      {AREA_NAMES.map((name, areaIdx) => (
-        <div key={areaIdx}>
-          <b>{name}（{AREA_CAPACITY[areaIdx].toLocaleString()}kg）</b>
-          <br />
-          {Array(SEATS_PER_AREA).fill().map((_, seatIdx) => (
-            <input
-              key={seatIdx}
-              type="number"
-              value={weights[areaIdx][seatIdx]}
-              onChange={e => handleChange(areaIdx, seatIdx, e.target.value)}
-              /* ------- 見た目固定用スタイル ------- */
-              style={{
-                width: "50px",
-                display: "inline-block",
-                marginRight: "2px"
-              }}
-            />
-          ))}
-          <br />
-          ← エリア合計: {areaTotals[areaIdx].toLocaleString()}kg
-          {areaTotals[areaIdx] === 0 && suggested[areaIdx] > 0 && (
-            <>（推奨 {suggested[areaIdx].toLocaleString()}kg）</>
-          )}
-          <br /><br />
-        </div>
-      ))}
+      {entries.map((entry, ei) => {
+        const { totalWeight, axleWeight } = totals(entry);
 
-      <div>
-        第2軸荷重: {axle2Total.toLocaleString()}kg / {MAX_AXLE2.toLocaleString()}kg
-      </div>
-      <div>
-        総積載: {grandTotal.toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg
-      </div>
+        return (
+          <div
+            key={ei}
+            style={{
+              marginBottom: "2rem",
+              borderBottom: "1px solid #ccc",
+              paddingBottom: "1rem",
+            }}
+          >
+            {/* 便名 */}
+            <div style={{ marginBottom: "1rem" }}>
+              <label>
+                便名：
+                <input
+                  type="text"
+                  value={entry.便名}
+                  onChange={(e) => {
+                    const updated = [...entries];
+                    updated[ei].便名 = e.target.value;
+                    setEntries(updated);
+                  }}
+                  style={{ marginLeft: "0.5rem", width: "120px" }}
+                />
+              </label>
+            </div>
+
+            {/* 各エリア */}
+            {areaLabels.map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: "1.5rem" }}>
+                <h4>{label}</h4>
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}
+                  >
+                    <label>
+                      助手席側{i + 1}：
+                      <input
+                        type="number"
+                        value={entry[key][i]?.left || ""}
+                        onChange={(e) => updateCell(ei, key, i, "left", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, ei, key, i, "left")}
+                        ref={(el) =>
+                          (inputRefs.current[`${ei}-${key}-${i}-left`] = el)
+                        }
+                        style={{ width: "100px" }}
+                      />
+                    </label>
+                    <label>
+                      運転席側{i + 1}：
+                      <input
+                        type="number"
+                        value={entry[key][i]?.right || ""}
+                        onChange={(e) => updateCell(ei, key, i, "right", e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, ei, key, i, "right")}
+                        ref={(el) =>
+                          (inputRefs.current[`${ei}-${key}-${i}-right`] = el)
+                        }
+                        style={{ width: "100px" }}
+                      />
+                    </label>
+                  </div>
+                ))}
+                <div>
+                  ⇒ エリア合計：
+                  <strong>{Math.round(areaSum(entry, key)).toLocaleString()}kg</strong>
+                  {(() => {
+                    const s = suggest(entry, key);
+                    return s > 0 ? <>（目安 {s.toLocaleString()}kg）</> : null;
+                  })()}
+                </div>
+              </div>
+            ))}
+
+            {/* 集計表示 */}
+            <div>
+              <strong>第2軸荷重：</strong> {Math.round(axleWeight).toLocaleString()}kg / {MAX_AXLE_LOAD.toLocaleString()}kg
+            </div>
+            <div>
+              <strong>総積載量：</strong> {Math.round(totalWeight).toLocaleString()}kg / {MAX_TOTAL_LOAD.toLocaleString()}kg
+            </div>
+
+            {/* クラウド保存 */}
+            <button
+              onClick={async () => {
+                try {
+                  await addDoc(collection(db, "liftLogs"), {
+                    ...entry,
+                    ...totals(entry),
+                    timestamp: serverTimestamp(),
+                  });
+                  alert("✅ クラウドに保存しました");
+                } catch {
+                  alert("❌ 保存に失敗しました");
+                }
+              }}
+              style={{
+                marginTop: "0.5rem",
+                padding: "0.5rem 1rem",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+              }}
+            >
+              ☁ クラウド保存
+            </button>
+          </div>
+        );
+      })}
+
+      {/* 便追加 */}
+      {entries.length < 26 && (
+        <button
+          onClick={() => setEntries([...entries, initialEntry()])}
+          style={{
+            display: "block",
+            marginTop: "1rem",
+            padding: "0.75rem 1.25rem",
+            fontSize: "1rem",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "0.5rem",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+          }}
+        >
+          ＋便を追加する
+        </button>
+      )}
     </div>
   );
 }
