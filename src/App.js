@@ -17,6 +17,7 @@ const AXLE_COEF = {
   中間2:   0.1491,
   後部:   -0.218,
 };
+
 const INTERCEPT = 3554.87;
 
 const AREAS = [
@@ -56,9 +57,9 @@ export default function App() {
     const remTotal = MAX_TOTAL - total;
     const remAxle  = MAX_AXLE  - axle;
 
-    const coef = AXLE_COEF[areaKey];
+    const coef  = AXLE_COEF[areaKey];
     const ideal = MAX_TOTAL * RATIO[areaKey];
-    const need = ideal - areaSum(entry, areaKey);
+    const need  = ideal - areaSum(entry, areaKey);
     if (need <= 0) return 0;
 
     let maxByAxle;
@@ -69,7 +70,7 @@ export default function App() {
     }
 
     const addable = Math.floor(Math.max(0, Math.min(need, remTotal, maxByAxle)));
-    return addable;
+    return addable >= 300 ? addable : 0; // 🟩 今回の修正：300kg未満なら非表示
   };
 
   const setVal = (ei, k, ri, side, value) =>
