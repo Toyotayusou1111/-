@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 
 const AREA_NAMES = ["ひな壇", "中間①", "中間②", "後部"];
-const AREA_CAPACITY = [3700, 4100, 6400, 5500];     // 定格積載
-const AXLE2_COEFF = [0.45, 0.58, 0.66, 0.72];       // 第2軸への係数
+const AREA_CAPACITY = [3700, 4100, 6400, 5500];
+const AXLE2_COEFF = [0.45, 0.58, 0.66, 0.72];
 const MAX_TOTAL = 19700;
 const MAX_AXLE2 = 10000;
-const SEATS = 8;                                    // 各エリア入力欄数（助手4+運転4）
+const SEATS = 8;
 
 export default function App() {
   const [weights, setWeights] = useState(
@@ -42,7 +42,7 @@ export default function App() {
     let remAxle2 = MAX_AXLE2 - axle2Now;
     if (remTotal <= 0 || remAxle2 <= 0) return s;
 
-    const priority = [3, 2, 1]; // 後部→中②→中①
+    const priority = [3, 2, 1];
     for (const i of priority) {
       if (currTotals[i] !== 0) continue;
       const maxCap = AREA_CAPACITY[i];
@@ -80,7 +80,6 @@ export default function App() {
               onChange={e =>
                 handleChange(areaIdx, seatIdx, e.target.value)
               }
-              style={{ width: "60px", margin: "2px" }}
             />
           ))}
           <br />
