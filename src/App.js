@@ -1,4 +1,4 @@
-// === App.js（最終確定版＋履歴一覧＋CSV出力＋スマホ縦移動対応） ===
+// === App.js（最終確定版＋履歴一覧＋CSV出力＋スマホ縦移動対応＋4桁後に縦移動） ===
 import React, { useState, useRef, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
@@ -55,8 +55,8 @@ export default function App() {
     if (tgt) setTimeout(() => refs.current[tgt.join("-")]?.focus(), 100);
   };
 
-  const next = (e, ei, k, ri, side) => {
-    if (e.key === "Enter") {
+  const next = (e, ei, k, ri, side, value) => {
+    if (e.key === "Enter" || value.length >= 4) {
       e.preventDefault();
       focusNext(ei, k, ri, side);
     }
@@ -141,9 +141,9 @@ export default function App() {
                       value={row.left}
                       onChange={(e) => {
                         setVal(ei, key, ri, "left", e.target.value);
-                        focusNext(ei, key, ri, "left");
+                        if (e.target.value.length >= 4) focusNext(ei, key, ri, "left");
                       }}
-                      onKeyDown={(e) => next(e, ei, key, ri, "left")}
+                      onKeyDown={(e) => next(e, ei, key, ri, "left", row.left)}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
                       style={{ width: 80 }}
                     />
@@ -155,9 +155,9 @@ export default function App() {
                       value={row.right}
                       onChange={(e) => {
                         setVal(ei, key, ri, "right", e.target.value);
-                        focusNext(ei, key, ri, "right");
+                        if (e.target.value.length >= 4) focusNext(ei, key, ri, "right");
                       }}
-                      onKeyDown={(e) => next(e, ei, key, ri, "right")}
+                      onKeyDown={(e) => next(e, ei, key, ri, "right", row.right)}
                       ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
                       style={{ width: 80 }}
                     />
