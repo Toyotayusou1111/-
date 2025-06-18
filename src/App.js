@@ -1,6 +1,5 @@
-// === App.js（最終確定版＋CSVメール送信機能追加） ===
+// === App.js（最終確定版・メール送信機能除外・便追加ボタン復活） ===
 import React, { useState, useRef } from "react";
-import emailjs from "emailjs-com";
 
 export default function App() {
   const MAX_AXLE = 10000;
@@ -48,37 +47,13 @@ export default function App() {
   const next = (e, ei, k, ri, side) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    const tgt = side === "right" ? (ri < 3 ? [ei, k, ri + 1, "left"] : null) : [ei, k, ri, "right"];
+    const tgt = side === "right"
+      ? ri < 3 ? [ei, k, ri + 1, "left"] : null
+      : [ei, k, ri, "right"];
     if (tgt) refs.current[tgt.join("-")]?.focus();
   };
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
-
-  const toCSV = () => {
-    const rows = ["便名,エリア,助手席1,運転席1,助手席2,運転席2,助手席3,運転席3,助手席4,運転席4,合計,第2軸荷重,総積載"];
-    entries.forEach((en) => {
-      const { total, axle } = totals(en);
-      areaMeta.forEach(({ key }) => {
-        const r = [en.便名, key];
-        en[key].forEach((row) => {
-          r.push(row.left || "", row.right || "");
-        });
-        r.push(areaSum(en, key));
-        r.push("", "");
-        rows.push(r.join(","));
-      });
-      rows.push(["", "合計", "", "", "", "", "", "", "", "", "", Math.round(axle), Math.round(total)].join(","));
-    });
-    return rows.join("\n");
-  };
-
-  const sendMail = () => {
-    const csv = toCSV();
-    emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
-      to_email: "onoda.tomohiro@toyotayusou.co.jp",
-      message: csv,
-    }, "YOUR_PUBLIC_KEY").then(() => alert("📧 送信しました！"), () => alert("❌ 送信失敗"));
-  };
 
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
@@ -131,8 +106,6 @@ export default function App() {
         );
       })}
       <button onClick={() => setEntries([...entries, newEntry()])}>＋便を追加する</button>
-      &nbsp;
-      <button onClick={sendMail}>📧 メール送信</button>
     </div>
   );
 }
