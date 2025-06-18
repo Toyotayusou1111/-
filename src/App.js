@@ -1,11 +1,9 @@
-// === App.js (UIそのまま・補正式のみ更新) ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
   const MAX_AXLE = 10000;
   const MAX_TOTAL = 19700;
 
-  /* ◆ 学習済み係数 ◆ */
   const COEF = {
     ひな壇: 0.6817,
     中間1: 0.6070,
@@ -57,7 +55,6 @@ export default function App() {
       return cp;
     });
 
-  /* Enter: 下方向へ */
   const next = (e, ei, k, ri, side) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -67,7 +64,6 @@ export default function App() {
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
 
-  /* ============ UI ============ */
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
       <h2>リフト重量記録（最大26便）</h2>
@@ -76,11 +72,16 @@ export default function App() {
         return (
           <div key={ei} style={{ marginBottom: 32 }}>
             <div style={{ marginBottom: 8 }}>
-              便名：<input value={en.便名} onChange={(e) => {
-                const cp = [...entries];
-                cp[ei].便名 = e.target.value;
-                setEntries(cp);
-              }} style={{ width: 120 }} />
+              便名：
+              <input
+                value={en.便名}
+                onChange={(e) => {
+                  const cp = [...entries];
+                  cp[ei].便名 = e.target.value;
+                  setEntries(cp);
+                }}
+                style={{ width: 120 }}
+              />
             </div>
             {areaMeta.map(({ key, label }) => (
               <div key={key} style={{ marginBottom: 16 }}>
@@ -113,8 +114,12 @@ export default function App() {
                 <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
               </div>
             ))}
-            <div>第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg</div>
-            <div>総積載量: {Math.round(total).toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg</div>
+            <div>
+              第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg
+            </div>
+            <div>
+              総積載量: {Math.round(total).toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg
+            </div>
           </div>
         );
       })}
