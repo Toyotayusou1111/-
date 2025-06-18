@@ -1,4 +1,4 @@
-// === App.js（最終確定版：クラウド保存機能削除） ===
+// === App.js（最終確定版：CSV・クラウド保存機能削除） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -36,39 +36,6 @@ export default function App() {
   });
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
-
-  const toCSV = (data) => {
-    const rows = [[
-      "便名", "エリア", "助手席1", "運転席1", "助手席2", "運転席2", "助手席3", "運転席3", "助手席4", "運転席4", "合計", "第2軸荷重", "総積載"
-    ].join(",")];
-
-    data.forEach((en) => {
-      const { total, axle } = totals(en);
-      areaMeta.forEach(({ key }) => {
-        const areaRows = en[key];
-        const row = [en.便名, key];
-        areaRows.forEach((r) => {
-          row.push(r.left || "");
-          row.push(r.right || "");
-        });
-        row.push(areaSum(en, key));
-        row.push("", "");
-        rows.push(row.join(","));
-      });
-      rows.push(["", "合計", "", "", "", "", "", "", "", "", "", Math.round(axle), Math.round(total)].join(","));
-    });
-    return rows.join("\n");
-  };
-
-  const downloadCSV = () => {
-    const blob = new Blob(["\uFEFF" + toCSV(entries)], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "履歴一覧.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
@@ -119,8 +86,6 @@ export default function App() {
         );
       })}
       <button onClick={() => setEntries([...entries, newEntry()])}>＋便を追加する</button>
-      &nbsp;
-      <button onClick={downloadCSV}>📄 CSVでダウンロード</button>
     </div>
   );
 }
