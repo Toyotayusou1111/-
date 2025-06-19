@@ -28,14 +28,14 @@ export default function App() {
   const getSuggestedWeight = (a) => Math.max(0, INITIAL_ROWS[a].base - getAreaWeight(a));
 
   return (
-    <div style={{ width: "960px", margin: "0 auto", fontSize: "14px" }}>
+    <div style={{ width: "1000px", margin: "0 auto", fontSize: "14px" }}>
       <h2>リフト重量記録（最大26便）</h2>
       <div><label>便名：<input type="text" /></label></div>
 
       {INITIAL_ROWS.map((row, a) => (
         <div key={a} style={{ marginTop: "20px" }}>
           <h3>{row.name}（{row.base.toLocaleString()}kg）</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", columnGap: "8px", rowGap: "4px" }}>
             {data[a].map((v, s) => (
               <div key={s} style={{ whiteSpace: "nowrap" }}>
                 <label>
@@ -66,10 +66,10 @@ export default function App() {
       ))}
 
       <div style={{ marginTop: "30px" }}>
-        <strong>■ 第2軸荷重:</strong> {getAxleLoad().toLocaleString()}kg
+        <strong>■ 第2軸荷重:</strong> {getAxleLoad().toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg
       </div>
       <div>
-        <strong>■ 合計重量:</strong> {getTotalWeight().toLocaleString()}kg
+        <strong>■ 合計重量:</strong> {getTotalWeight().toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg
       </div>
     </div>
   );
