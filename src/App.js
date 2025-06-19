@@ -1,10 +1,11 @@
-// === App.js（最終確定版：ひな壇目安が過剰に出ないよう修正） ===
+// === App.js（現実仕様準拠：目安にエリア最大上限を適用） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
   const MAX_AXLE = 10000;
   const MAX_TOTAL = 19700;
   const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
+  const LIMIT = { ひな壇: 3700, 中間1: 4100, 中間2: 6400, 後部: 5500 }; // エリア別制限
   const INTERCEPT = 3317.33;
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
@@ -43,7 +44,10 @@ export default function App() {
         const isFree = a.key === "中間2" || a.key === "後部";
         const logicalTotal = remainTotal * (COEF[a.key] / coefSum);
         const logicalAxle = remainAxle > 0 ? remainAxle / COEF[a.key] : 0;
-        const est = isFree ? logicalTotal : Math.min(logicalTotal, logicalAxle);
+        const maxLimit = LIMIT[a.key];
+        const est = isFree
+          ? Math.min(logicalTotal, maxLimit)
+          : Math.min(logicalTotal, logicalAxle, maxLimit);
         estimate[a.key] = Math.max(0, Math.floor(est));
       });
     }
