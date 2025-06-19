@@ -1,8 +1,8 @@
 import React, { useState, useRef } from "react";
 
 export default function App() {
-  const MAX_AXLE  = 10000;   // 10t
-  const MAX_TOTAL = 19700;   // 19.7t
+  const MAX_AXLE  = 10000;
+  const MAX_TOTAL = 19700;
 
   const INITIAL_ROWS = [
     { name: "ひな壇", base:  3700, coeffs: [1,1,1,1,1,1,1,1], impact:  1.0 },
@@ -11,7 +11,6 @@ export default function App() {
     { name: "後部",   base:  3800, coeffs: [1,1,1,1,1,1,1,1], impact: -0.3 },
   ];
 
-  /* ---- 以下、ロジックは 6/19 最終確定版と同じ ---- */
   const [data, setData] = useState(INITIAL_ROWS.map(() => Array(8).fill("")));
   const inputRefs = useRef([]);
 
@@ -31,22 +30,20 @@ export default function App() {
   const getAxleLoad = () =>
     data.reduce((sum, _, a) => sum + getAreaWeight(a) * INITIAL_ROWS[a].impact, 0);
 
-  /* ★ 目安＝そのエリアの残り収容量（マイナスは 0）★ */
   const getSuggestedWeight = (a) =>
     Math.max(0, INITIAL_ROWS[a].base - getAreaWeight(a));
 
-  /* ---- JSX ---- */
   return (
-    <div style={{ padding: 20 }}>
+    <div>
       <h2>リフト重量記録（最大26便）</h2>
       <div><label>便名：<input type="text" /></label></div>
 
       {INITIAL_ROWS.map((row, a) => (
-        <div key={a} style={{ marginTop: 20 }}>
+        <div key={a}>
           <h3>{row.name}（{row.base.toLocaleString()}kg）</h3>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
             {data[a].map((v, s) => (
-              <div key={s} style={{ margin: 5 }}>
+              <div key={s}>
                 <label>
                   {s < 4 ? "助手席荷重" : "運転席荷重"}{s%4+1}：
                   <input
@@ -54,7 +51,6 @@ export default function App() {
                     value={v}
                     onChange={(e)=>handleChange(a, s, e.target.value)}
                     ref={(el)=>inputRefs.current[a*8+s]=el}
-                    style={{ width: 80 }}
                     onKeyDown={(e)=>{
                       if(e.key==="Enter"){e.preventDefault();
                         const n=a*8+s+1;
@@ -72,7 +68,7 @@ export default function App() {
         </div>
       ))}
 
-      <div style={{ marginTop: 30 }}>
+      <div>
         <strong>■ 第2軸荷重:</strong> {getAxleLoad().toLocaleString()}kg
       </div>
       <div>
