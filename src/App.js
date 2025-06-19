@@ -1,4 +1,4 @@
-// === App.js（最終確定版：見た目変更なし・後部は第2軸制限から除外） ===
+// === App.js（最終確定版：ひな壇目安が過剰に出ないよう修正） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -32,7 +32,7 @@ export default function App() {
       areaSum(en, "後部") * COEF.後部 +
       INTERCEPT;
 
-    const remainTotal = MAX_TOTAL - total;
+    const remainTotal = Math.max(0, MAX_TOTAL - total);
     const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
@@ -41,13 +41,10 @@ export default function App() {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
       targets.forEach((a) => {
         const isFree = a.key === "中間2" || a.key === "後部";
-        const est = isFree
-          ? remainTotal * (COEF[a.key] / coefSum)
-          : Math.min(
-              remainTotal * (COEF[a.key] / coefSum),
-              remainAxle > 0 ? remainAxle / COEF[a.key] : 0
-            );
-        estimate[a.key] = Math.floor(est);
+        const logicalTotal = remainTotal * (COEF[a.key] / coefSum);
+        const logicalAxle = remainAxle > 0 ? remainAxle / COEF[a.key] : 0;
+        const est = isFree ? logicalTotal : Math.min(logicalTotal, logicalAxle);
+        estimate[a.key] = Math.max(0, Math.floor(est));
       });
     }
 
