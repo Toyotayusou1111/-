@@ -1,102 +1,149 @@
-import React, { useState } from "react";
-
-const COEF = {
-  front: 0.1,
-  middle1: 0.08,
-  middle2: 0.0975,
-  rear: 0.0433,
-};
+// === App.js（最終確定版：エンター右移動・中間②以降の目安ロジック修正） ===
+import React, { useState, useRef } from "react";
 
 export default function App() {
-  const [remainTotal, setRemainTotal] = useState("");
-  const [remainAxle, setRemainAxle] = useState("");
-  const [results, setResults] = useState(null);
+  const MAX_AXLE = 10000;
+  const MAX_TOTAL = 19700;
+  const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
+  const INTERCEPT = 3317.33;
+  const areaMeta = [
+    { key: "ひな壇", label: "ひな壇（3,700kg）" },
+    { key: "中間1", label: "中間①（4,100kg）" },
+    { key: "中間2", label: "中間②（6,400kg）" },
+    { key: "後部", label: "後部（5,500kg）" },
+  ];
 
-  const calculateLoad = () => {
-    const total = parseFloat(remainTotal);
-    const axle = parseFloat(remainAxle);
-    const coefSum = Object.values(COEF).reduce((a, b) => a + b, 0);
+  const blankRows = () => Array(4).fill({ left: "", right: "" });
+  const newEntry = () => ({ 便名: "", ひな壇: blankRows(), 中間1: blankRows(), 中間2: blankRows(), 後部: blankRows() });
 
-    if (isNaN(total) || isNaN(axle)) {
-      alert("正しい数値を入力してください。");
-      return;
+  const [entries, setEntries] = useState([newEntry()]);
+  const refs = useRef({});
+
+  const n = (v) => parseFloat(v) || 0;
+  const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
+
+  const totals = (en) => {
+    const areaSums = areaMeta.map((a) => ({ key: a.key, sum: areaSum(en, a.key) }));
+    const total = areaSums.reduce((s, a) => s + a.sum, 0);
+    const axle =
+      areaSum(en, "ひな壇") * COEF.ひな壇 +
+      areaSum(en, "中間1") * COEF.中間1 +
+      areaSum(en, "中間2") * COEF.中間2 +
+      areaSum(en, "後部") * COEF.後部 +
+      INTERCEPT;
+
+    const remainTotal = MAX_TOTAL - total;
+    const remainAxle = MAX_AXLE - axle;
+
+    const estimate = {};
+    // 未入力エリアだけを対象に目安を算出
+    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0);
+    if (targets.length > 0) {
+      const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
+      targets.forEach((a) => {
+        // 中間②・後部は“積むと第2軸が軽くなる”ため掛け算、
+        // それ以外は従来通り割り算で制限
+        const est = a.key === "中間2" || a.key === "後部"
+          ? Math.min(
+              remainTotal * (COEF[a.key] / coefSum),
+              remainAxle * COEF[a.key]
+            )
+          : Math.min(
+              remainTotal * (COEF[a.key] / coefSum),
+              remainAxle / COEF[a.key]
+            );
+        estimate[a.key] = Math.floor(est);
+      });
     }
 
-    const estimate = Object.entries(COEF).map(([key, coef]) => {
-      let load;
-      if (key === "middle2" || key === "rear") {
-        // 第2軸へ軽く作用するエリアは多く積める
-        load = Math.min(total * (coef / coefSum), axle * (1 - coef));
-      } else {
-        // 正方向に重くなるエリアは制限強めに
-        load = Math.min(total * (coef / coefSum), axle * coef);
-      }
-      return { key, load: load.toFixed(2) };
+    return { total, axle, estimate };
+  };
+
+  const setVal = (ei, k, ri, side, v) =>
+    setEntries((p) => {
+      const cp = [...p];
+      const rows = cp[ei][k].map((r) => ({ ...r }));
+      rows[ri][side] = v;
+      cp[ei][k] = rows;
+      return cp;
     });
 
-    setResults(estimate);
+  const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
+
+  const handleKeyDown = (e, ei, k, ri, side) => {
+    if (e.key === "Enter") {
+      const order = ["left", "right"];
+      const sideIdx = order.indexOf(side);
+      const nextSide = sideIdx === 0 ? "right" : "left";
+      const nextRi = sideIdx === 0 ? ri : ri + 1;
+      const nextKey = `${ei}-${k}-${nextRi}-${nextSide}`;
+      const nextInput = refs.current[nextKey];
+      if (nextInput) nextInput.focus();
+    }
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: "2rem auto", padding: "1rem", background: "#f9f9f9", borderRadius: "10px" }}>
-      <h1>積載量計算ツール</h1>
-
-      <label>残り積載量（kg）</label>
-      <input
-        type="number"
-        value={remainTotal}
-        onChange={(e) => setRemainTotal(e.target.value)}
-        style={{ width: "100%", padding: "10px", marginBottom: "1rem" }}
-      />
-
-      <label>残り第2軸荷重（kg）</label>
-      <input
-        type="number"
-        value={remainAxle}
-        onChange={(e) => setRemainAxle(e.target.value)}
-        style={{ width: "100%", padding: "10px", marginBottom: "1rem" }}
-      />
-
-      <button
-        onClick={calculateLoad}
-        style={{
-          width: "100%",
-          padding: "12px",
-          background: "#4CAF50",
-          color: "white",
-          fontWeight: "bold",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        計算
-      </button>
-
-      {results && (
-        <div style={{ marginTop: "2rem", background: "#fff", padding: "1rem", borderRadius: 8 }}>
-          <h3>積載目安結果</h3>
-          {results.map(({ key, load }) => (
-            <p key={key}>
-              <strong>{displayName(key)}:</strong> {load} kg
-            </p>
-          ))}
-        </div>
-      )}
+    <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
+      <h2>リフト重量記録（最大26便）</h2>
+      {entries.map((en, ei) => {
+        const { total, axle, estimate } = totals(en);
+        return (
+          <div key={ei} style={{ marginBottom: 32 }}>
+            <div style={{ marginBottom: 8 }}>
+              便名：
+              <input
+                value={en.便名}
+                onChange={(e) => {
+                  const cp = [...entries];
+                  cp[ei].便名 = e.target.value;
+                  setEntries(cp);
+                }}
+                style={{ width: 120 }}
+              />
+            </div>
+            {areaMeta.map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: 16 }}>
+                <strong>{label}</strong>
+                {en[key].map((row, ri) => (
+                  <div key={ri} style={{ margin: "2px 0" }}>
+                    助手席荷重{ri + 1}：
+                    <input
+                      type="number"
+                      value={row.left}
+                      onChange={(e) => setVal(ei, key, ri, "left", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "left")}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
+                      style={{ width: 80 }}
+                    />
+                    <button onClick={() => clear(ei, key, ri, "left")}>×</button>
+                    &nbsp; 運転席荷重{ri + 1}：
+                    <input
+                      type="number"
+                      value={row.right}
+                      onChange={(e) => setVal(ei, key, ri, "right", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "right")}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
+                      style={{ width: 80 }}
+                    />
+                    <button onClick={() => clear(ei, key, ri, "right")}>×</button>
+                  </div>
+                ))}
+                <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
+                {estimate[key] !== undefined && (
+                  <div>→ 積載目安: {estimate[key].toLocaleString()}kg</div>
+                )}
+              </div>
+            ))}
+            <div>
+              第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg
+            </div>
+            <div>
+              総積載量: {Math.round(total).toLocaleString()}kg / {MAX_TOTAL.toLocaleString()}kg
+            </div>
+          </div>
+        );
+      })}
+      <button onClick={() => setEntries([...entries, newEntry()])}>＋便を追加する</button>
     </div>
   );
-}
-
-function displayName(key) {
-  switch (key) {
-    case "front":
-      return "フロントエリア";
-    case "middle1":
-      return "中間①エリア";
-    case "middle2":
-      return "中間②エリア";
-    case "rear":
-      return "後部エリア";
-    default:
-      return key;
-  }
 }
