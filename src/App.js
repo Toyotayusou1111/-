@@ -1,4 +1,4 @@
-// === App.js（最終確定版：CSV・クラウド保存削除・下移動復活） ===
+// === App.js（最終確定版：エンター右移動・エリア目安復活） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -21,10 +21,34 @@ export default function App() {
 
   const n = (v) => parseFloat(v) || 0;
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
+
   const totals = (en) => {
-    const total = areaMeta.reduce((s, a) => s + areaSum(en, a.key), 0);
-    const axle = areaSum(en, "ひな壇") * COEF.ひな壇 + areaSum(en, "中間1") * COEF.中間1 + areaSum(en, "中間2") * COEF.中間2 + areaSum(en, "後部") * COEF.後部 + INTERCEPT;
-    return { total, axle };
+    const areaSums = areaMeta.map((a) => ({ key: a.key, sum: areaSum(en, a.key) }));
+    const total = areaSums.reduce((s, a) => s + a.sum, 0);
+    const axle =
+      areaSum(en, "ひな壇") * COEF.ひな壇 +
+      areaSum(en, "中間1") * COEF.中間1 +
+      areaSum(en, "中間2") * COEF.中間2 +
+      areaSum(en, "後部") * COEF.後部 +
+      INTERCEPT;
+
+    const remainTotal = MAX_TOTAL - total;
+    const remainAxle = MAX_AXLE - axle;
+
+    const estimate = {};
+    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0);
+    if (targets.length > 0) {
+      const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
+      targets.forEach((a) => {
+        const est = Math.min(
+          remainTotal * (COEF[a.key] / coefSum),
+          remainAxle / COEF[a.key]
+        );
+        estimate[a.key] = Math.floor(est);
+      });
+    }
+
+    return { total, axle, estimate };
   };
 
   const setVal = (ei, k, ri, side, v) => setEntries((p) => {
@@ -39,11 +63,13 @@ export default function App() {
 
   const handleKeyDown = (e, ei, k, ri, side) => {
     if (e.key === "Enter") {
-      const nextIndex = ri + 1;
-      const refKey = `${ei}-${k}-${nextIndex}-${side}`;
-      if (refs.current[refKey]) {
-        refs.current[refKey].focus();
-      }
+      const order = ["left", "right"];
+      const sideIdx = order.indexOf(side);
+      const nextSide = sideIdx === 0 ? "right" : "left";
+      const nextRi = sideIdx === 0 ? ri : ri + 1;
+      const nextKey = `${ei}-${k}-${nextRi}-${nextSide}`;
+      const nextInput = refs.current[nextKey];
+      if (nextInput) nextInput.focus();
     }
   };
 
@@ -51,7 +77,7 @@ export default function App() {
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
       <h2>リフト重量記録（最大26便）</h2>
       {entries.map((en, ei) => {
-        const { total, axle } = totals(en);
+        const { total, axle, estimate } = totals(en);
         return (
           <div key={ei} style={{ marginBottom: 32 }}>
             <div style={{ marginBottom: 8 }}>
@@ -90,6 +116,7 @@ export default function App() {
                   </div>
                 ))}
                 <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
+                {estimate[key] !== undefined && <div>→ 積載目安: {estimate[key].toLocaleString()}kg</div>}
               </div>
             ))}
             <div>第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg</div>
