@@ -1,11 +1,17 @@
-// === App.js（最終確定版：エンター右移動・中間②以降の目安ロジック修正） ===
+// === App.js（最終確定版：中間②・後部の目安を軸制限から分離） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
-  const MAX_AXLE = 10000;
-  const MAX_TOTAL = 19700;
-  const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
-  const INTERCEPT = 3317.33;
+  const MAX_AXLE = 10000;          // 第2軸上限
+  const MAX_TOTAL = 19700;         // 総積載上限
+  const COEF = {                  // 各エリア → 第2軸への影響係数
+    ひな壇: 0.6817,
+    中間1: 0.607,
+    中間2: 0.0975,
+    後部: 0.0433,
+  };
+  const INTERCEPT = 3317.33;       // 空車時オフセット
+
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
     { key: "中間1", label: "中間①（4,100kg）" },
@@ -19,12 +25,15 @@ export default function App() {
   const [entries, setEntries] = useState([newEntry()]);
   const refs = useRef({});
 
-  const n = (v) => parseFloat(v) || 0;
+  const n = (v) => parseFloat(v) || 0; // 数値化ヘルパ
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
 
+  // ────────────────────────────────────────────
+  // 各便の合計値・目安を計算
+  // ────────────────────────────────────────────
   const totals = (en) => {
-    const areaSums = areaMeta.map((a) => ({ key: a.key, sum: areaSum(en, a.key) }));
-    const total = areaSums.reduce((s, a) => s + a.sum, 0);
+    const total = areaMeta.reduce((s, a) => s + areaSum(en, a.key), 0);
+
     const axle =
       areaSum(en, "ひな壇") * COEF.ひな壇 +
       areaSum(en, "中間1") * COEF.中間1 +
@@ -32,26 +41,26 @@ export default function App() {
       areaSum(en, "後部") * COEF.後部 +
       INTERCEPT;
 
-    const remainTotal = MAX_TOTAL - total;
-    const remainAxle = MAX_AXLE - axle;
+    const remainTotal = Math.max(0, MAX_TOTAL - total);
+    const remainAxle = MAX_AXLE - axle; // 負値の場合=既に超過
 
     const estimate = {};
-    // 未入力エリアだけを対象に目安を算出
     const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0);
-    if (targets.length > 0) {
+    if (targets.length) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
+
       targets.forEach((a) => {
-        // 中間②・後部は“積むと第2軸が軽くなる”ため掛け算、
-        // それ以外は従来通り割り算で制限
-        const est = a.key === "中間2" || a.key === "後部"
-          ? Math.min(
-              remainTotal * (COEF[a.key] / coefSum),
-              remainAxle * COEF[a.key]
-            )
-          : Math.min(
-              remainTotal * (COEF[a.key] / coefSum),
-              remainAxle / COEF[a.key]
-            );
+        let est;
+        if (a.key === "中間2" || a.key === "後部") {
+          // 軽く作用 → 第2軸超過でも積める余地あり → 総量だけで配分
+          est = remainTotal * (COEF[a.key] / coefSum);
+        } else {
+          // 重く作用 → 総量と軸双方の制限を考慮
+          est = Math.min(
+            remainTotal * (COEF[a.key] / coefSum),
+            remainAxle > 0 ? remainAxle / COEF[a.key] : 0
+          );
+        }
         estimate[a.key] = Math.floor(est);
       });
     }
@@ -59,6 +68,7 @@ export default function App() {
     return { total, axle, estimate };
   };
 
+  // 値設定ヘルパ
   const setVal = (ei, k, ri, side, v) =>
     setEntries((p) => {
       const cp = [...p];
@@ -70,18 +80,20 @@ export default function App() {
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
 
+  // エンターキーで右移動
   const handleKeyDown = (e, ei, k, ri, side) => {
     if (e.key === "Enter") {
-      const order = ["left", "right"];
-      const sideIdx = order.indexOf(side);
-      const nextSide = sideIdx === 0 ? "right" : "left";
-      const nextRi = sideIdx === 0 ? ri : ri + 1;
+      const nextSide = side === "left" ? "right" : "left";
+      const nextRi = side === "left" ? ri : ri + 1;
       const nextKey = `${ei}-${k}-${nextRi}-${nextSide}`;
       const nextInput = refs.current[nextKey];
       if (nextInput) nextInput.focus();
     }
   };
 
+  // ────────────────────────────────────────────
+  // UI
+  // ────────────────────────────────────────────
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
       <h2>リフト重量記録（最大26便）</h2>
@@ -116,7 +128,8 @@ export default function App() {
                       style={{ width: 80 }}
                     />
                     <button onClick={() => clear(ei, key, ri, "left")}>×</button>
-                    &nbsp; 運転席荷重{ri + 1}：
+                    &nbsp;
+                    運転席荷重{ri + 1}：
                     <input
                       type="number"
                       value={row.right}
