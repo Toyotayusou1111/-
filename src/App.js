@@ -25,7 +25,6 @@ export default function App() {
     const estimate = Object.entries(COEF).map(([key, coef]) => {
       let load;
       if (key === "middle2" || key === "rear") {
-        // 中間②・後部は軸荷重を軽くする方向で逆算
         load = Math.min(total * (coef / coefSum), axle * (coef / coefSum));
       } else {
         load = Math.min(total * (coef / coefSum), axle * coef);
