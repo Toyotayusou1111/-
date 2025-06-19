@@ -25,10 +25,10 @@ export default function App() {
     const estimate = Object.entries(COEF).map(([key, coef]) => {
       let load;
       if (key === "middle2" || key === "rear") {
-        // 第2軸への影響が軽いエリアは「多く積める」ように逆算
+        // 第2軸へ軽く作用するエリアは多く積める
         load = Math.min(total * (coef / coefSum), axle * (1 - coef));
       } else {
-        // 正方向で影響するエリア（フロント・中間①）
+        // 正方向に重くなるエリアは制限強めに
         load = Math.min(total * (coef / coefSum), axle * coef);
       }
       return { key, load: load.toFixed(2) };
