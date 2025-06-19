@@ -1,4 +1,4 @@
-// === App.js（最終確定版：エンター右移動・エリア目安復活） ===
+// === App.js（最終確定版：見た目変更なし・後部は第2軸制限から除外） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
@@ -40,10 +40,13 @@ export default function App() {
     if (targets.length > 0) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
       targets.forEach((a) => {
-        const est = Math.min(
-          remainTotal * (COEF[a.key] / coefSum),
-          remainAxle / COEF[a.key]
-        );
+        const isFree = a.key === "中間2" || a.key === "後部";
+        const est = isFree
+          ? remainTotal * (COEF[a.key] / coefSum)
+          : Math.min(
+              remainTotal * (COEF[a.key] / coefSum),
+              remainAxle > 0 ? remainAxle / COEF[a.key] : 0
+            );
         estimate[a.key] = Math.floor(est);
       });
     }
@@ -67,7 +70,7 @@ export default function App() {
       const sideIdx = order.indexOf(side);
       const nextSide = sideIdx === 0 ? "right" : "left";
       const nextRi = sideIdx === 0 ? ri : ri + 1;
-      const nextKey = ${ei}-${k}-${nextRi}-${nextSide};
+      const nextKey = `${ei}-${k}-${nextRi}-${nextSide}`;
       const nextInput = refs.current[nextKey];
       if (nextInput) nextInput.focus();
     }
@@ -98,7 +101,7 @@ export default function App() {
                       value={row.left}
                       onChange={(e) => setVal(ei, key, ri, "left", e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "left")}
-                      ref={(el) => (refs.current[${ei}-${key}-${ri}-left] = el)}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-left`] = el)}
                       style={{ width: 80 }}
                     />
                     <button onClick={() => clear(ei, key, ri, "left")}>×</button>
@@ -109,7 +112,7 @@ export default function App() {
                       value={row.right}
                       onChange={(e) => setVal(ei, key, ri, "right", e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, ei, key, ri, "right")}
-                      ref={(el) => (refs.current[${ei}-${key}-${ri}-right] = el)}
+                      ref={(el) => (refs.current[`${ei}-${key}-${ri}-right`] = el)}
                       style={{ width: 80 }}
                     />
                     <button onClick={() => clear(ei, key, ri, "right")}>×</button>
