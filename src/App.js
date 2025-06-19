@@ -35,11 +35,11 @@ export default function App() {
       {INITIAL_ROWS.map((row, a) => (
         <div key={a} style={{ marginTop: "20px" }}>
           <h3>{row.name}（{row.base.toLocaleString()}kg）</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", columnGap: "8px", rowGap: "4px" }}>
-            {data[a].map((v, s) => (
-              <div key={s} style={{ whiteSpace: "nowrap" }}>
-                <label>
-                  {s < 4 ? "助手席荷重" : "運転席荷重"}{s % 4 + 1}：
+          <div style={{ display: "flex", gap: "40px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {data[a].slice(0, 4).map((v, s) => (
+                <label key={s}>
+                  助手席荷重{s + 1}：
                   <input
                     type="number"
                     value={v}
@@ -55,12 +55,33 @@ export default function App() {
                     style={{ width: "80px" }}
                   />
                 </label>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {data[a].slice(4).map((v, s) => (
+                <label key={s + 4}>
+                  運転席荷重{s + 1}：
+                  <input
+                    type="number"
+                    value={v}
+                    onChange={(e) => handleChange(a, s + 4, e.target.value)}
+                    ref={(el) => inputRefs.current[a * 8 + s + 4] = el}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const n = a * 8 + s + 5;
+                        inputRefs.current[n]?.focus();
+                      }
+                    }}
+                    style={{ width: "80px" }}
+                  />
+                </label>
+              ))}
+            </div>
           </div>
           <div>
             ← エリア合計: {getAreaWeight(a).toLocaleString()}kg
-            <span style={{ color: "blue" }}>（目安: {getSuggestedWeight(a).toLocaleString()}kg）</span>
+            （目安: {getSuggestedWeight(a).toLocaleString()}kg）
           </div>
         </div>
       ))}
