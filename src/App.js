@@ -23,18 +23,6 @@ export default function App() {
     setData(newData);
   };
 
-  const handleKeyDown = (e, areaIndex, seatIndex) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const currentIndex = areaIndex * 8 + seatIndex;
-      const nextIndex = currentIndex + 1;
-      const nextInput = inputRefs.current[nextIndex];
-      if (nextInput) {
-        nextInput.focus();
-      }
-    }
-  };
-
   const getAreaWeight = (areaIndex) => {
     return data[areaIndex].reduce((sum, val, i) => {
       const num = parseFloat(val);
@@ -57,6 +45,16 @@ export default function App() {
       const areaWeight = getAreaWeight(areaIndex);
       return sum + areaWeight * INITIAL_ROWS[areaIndex].impact;
     }, 0);
+  };
+
+  const getSuggestedWeight = (areaIndex) => {
+    const remainingAxle = MAX_AXLE - getAxleLoad();
+    const remainingTotal = MAX_TOTAL - getTotalWeight();
+    const impact = INITIAL_ROWS[areaIndex].impact;
+    if (impact === 0) return 0;
+
+    const maxByAxle = remainingAxle / impact;
+    return Math.floor(Math.min(maxByAxle, remainingTotal));
   };
 
   return (
@@ -83,7 +81,6 @@ export default function App() {
                     onChange={(e) =>
                       handleChange(areaIndex, seatIndex, e.target.value)
                     }
-                    onKeyDown={(e) => handleKeyDown(e, areaIndex, seatIndex)}
                     ref={(el) =>
                       (inputRefs.current[areaIndex * 8 + seatIndex] = el)
                     }
@@ -94,7 +91,10 @@ export default function App() {
             ))}
           </div>
           <div>
-            ← エリア合計: {getAreaWeight(areaIndex).toLocaleString()}kg
+            ← エリア合計: {getAreaWeight(areaIndex).toLocaleString()}kg　
+            <span style={{ color: "blue" }}>
+              （目安: {getSuggestedWeight(areaIndex).toLocaleString()}kg）
+            </span>
           </div>
         </div>
       ))}
