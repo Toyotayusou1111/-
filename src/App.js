@@ -25,8 +25,10 @@ export default function App() {
     const estimate = Object.entries(COEF).map(([key, coef]) => {
       let load;
       if (key === "middle2" || key === "rear") {
-        load = Math.min(total * (coef / coefSum), axle * (coef / coefSum));
+        // 第2軸への影響が軽いエリアは「多く積める」ように逆算
+        load = Math.min(total * (coef / coefSum), axle * (1 - coef));
       } else {
+        // 正方向で影響するエリア（フロント・中間①）
         load = Math.min(total * (coef / coefSum), axle * coef);
       }
       return { key, load: load.toFixed(2) };
@@ -36,7 +38,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: "2rem auto", padding: "1rem", background: "#f4f4f4", borderRadius: 10 }}>
+    <div style={{ maxWidth: 500, margin: "2rem auto", padding: "1rem", background: "#f9f9f9", borderRadius: "10px" }}>
       <h1>積載量計算ツール</h1>
 
       <label>残り積載量（kg）</label>
@@ -44,7 +46,7 @@ export default function App() {
         type="number"
         value={remainTotal}
         onChange={(e) => setRemainTotal(e.target.value)}
-        style={{ width: "100%", padding: "8px", marginBottom: "1rem" }}
+        style={{ width: "100%", padding: "10px", marginBottom: "1rem" }}
       />
 
       <label>残り第2軸荷重（kg）</label>
@@ -52,10 +54,21 @@ export default function App() {
         type="number"
         value={remainAxle}
         onChange={(e) => setRemainAxle(e.target.value)}
-        style={{ width: "100%", padding: "8px", marginBottom: "1rem" }}
+        style={{ width: "100%", padding: "10px", marginBottom: "1rem" }}
       />
 
-      <button onClick={calculateLoad} style={{ width: "100%", padding: "10px", background: "#4CAF50", color: "white", border: "none" }}>
+      <button
+        onClick={calculateLoad}
+        style={{
+          width: "100%",
+          padding: "12px",
+          background: "#4CAF50",
+          color: "white",
+          fontWeight: "bold",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
         計算
       </button>
 
