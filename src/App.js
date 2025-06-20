@@ -35,54 +35,31 @@ export default function App() {
       {INITIAL_ROWS.map((row, a) => (
         <div key={a} style={{ marginTop: "20px" }}>
           <h3>{row.name}（{row.base.toLocaleString()}kg）</h3>
-          <table style={{ borderSpacing: "10px 4px" }}>
+          <table>
             <tbody>
-              <tr>
-                {data[a].slice(0, 4).map((v, s) => (
-                  <td key={s}>
-                    <label>
-                      助手席荷重{s + 1}：
-                      <input
-                        type="number"
-                        value={v}
-                        onChange={(e) => handleChange(a, s, e.target.value)}
-                        ref={(el) => inputRefs.current[a * 8 + s] = el}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const n = a * 8 + s + 1;
-                            inputRefs.current[n]?.focus();
-                          }
-                        }}
-                        style={{ width: "80px" }}
-                      />
-                    </label>
+              {data[a].map((v, s) => (
+                <tr key={s}>
+                  <td style={{ paddingRight: "8px" }}>
+                    {s < 4 ? `助手席荷重${s + 1}` : `運転席荷重${s - 3}`}：
                   </td>
-                ))}
-              </tr>
-              <tr>
-                {data[a].slice(4).map((v, s) => (
-                  <td key={s + 4}>
-                    <label>
-                      運転席荷重{s + 1}：
-                      <input
-                        type="number"
-                        value={v}
-                        onChange={(e) => handleChange(a, s + 4, e.target.value)}
-                        ref={(el) => inputRefs.current[a * 8 + s + 4] = el}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const n = a * 8 + s + 5;
-                            inputRefs.current[n]?.focus();
-                          }
-                        }}
-                        style={{ width: "80px" }}
-                      />
-                    </label>
+                  <td>
+                    <input
+                      type="number"
+                      value={v}
+                      onChange={(e) => handleChange(a, s, e.target.value)}
+                      ref={(el) => inputRefs.current[a * 8 + s] = el}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const n = a * 8 + s + 1;
+                          inputRefs.current[n]?.focus();
+                        }
+                      }}
+                      style={{ width: "80px" }}
+                    />
                   </td>
-                ))}
-              </tr>
+                </tr>
+              ))}
             </tbody>
           </table>
           <div>
