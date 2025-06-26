@@ -30,8 +30,7 @@ export default function App() {
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
 
   const totals = (en) => {
-    const areaSums = areaMeta.map((a) => ({ key: a.key, sum: areaSum(en, a.key) }));
-    const total = areaSums.reduce((s, a) => s + a.sum, 0);
+    const total = areaMeta.reduce((sum, a) => sum + areaSum(en, a.key), 0);
 
     const axle =
       areaSum(en, "ひな壇") * COEF.ひな壇 +
@@ -44,7 +43,10 @@ export default function App() {
     const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
-    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0); // 入力なしのみに限定
+
+    const targets = areaMeta.filter((a) =>
+      en[a.key].every((r) => r.left === "" && r.right === "")
+    );
 
     if (targets.length > 0) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
