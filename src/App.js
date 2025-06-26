@@ -1,98 +1,86 @@
-// === 修正済み React 全コード（積載目安ロジック完全版） ===
-
+// === App.js（UI固定・最適重量自動計算） ===
 import React, { useState, useEffect } from "react";
 
-const AREA_CONFIG = [
-  { name: "ひな壇", limit: 3700, axleCoef: 1.0 },
-  { name: "中間①", limit: 4100, axleCoef: 0.5 },
-  { name: "中間②", limit: 6400, axleCoef: 0.3 },
-  { name: "後部", limit: 5500, axleCoef: 0.1 },
+const AREA_INFO = [
+  { name: "ひな壇", max: 3700, id: "hinadan" },
+  { name: "中間①", max: 4100, id: "chukan1" },
+  { name: "中間②", max: 6400, id: "chukan2" },
+  { name: "後部", max: 5500, id: "koubu" },
 ];
 
-const LiftInput = ({ index, data, onChange }) => {
-  const handleChange = (e, i) => {
-    const newValues = [...data.values];
-    newValues[i] = Number(e.target.value);
-    onChange(index, newValues);
-  };
-  const sum = data.values.reduce((acc, val) => acc + (val || 0), 0);
-  return (
-    <div>
-      <h3>
-        {data.name}（{data.limit.toLocaleString()}kg）
-      </h3>
-      {[...Array(4)].map((_, i) => (
-        <input
-          key={i}
-          type="number"
-          value={data.values[i] || ""}
-          onChange={(e) => handleChange(e, i)}
-        />
-      ))}
-      <div>← エリア合計: {sum.toLocaleString()}kg</div>
-      <div>→ 積載目安: {data.suggest.toLocaleString()}kg</div>
-    </div>
-  );
-};
-
 export default function App() {
-  const [areas, setAreas] = useState(
-    AREA_CONFIG.map((area) => ({ ...area, values: [0, 0, 0, 0], suggest: area.limit }))
+  const [weights, setWeights] = useState({});
+  const [optimal, setOptimal] = useState({});
+
+  const totalWeight = Object.values(weights).flat().reduce((a, b) => a + (parseFloat(b) || 0), 0);
+
+  const secondAxleLoad = ["chukan2", "koubu"].reduce(
+    (sum, key) => sum + ((weights[key]?.reduce((a, b) => a + (parseFloat(b) || 0), 0) || 0) * 0.9),
+    0
   );
+
+  const updateWeight = (areaId, index, value) => {
+    setWeights((prev) => {
+      const newArea = [...(prev[areaId] || [])];
+      newArea[index] = value;
+      return { ...prev, [areaId]: newArea };
+    });
+  };
 
   useEffect(() => {
-    const usedTotal = areas.reduce(
-      (acc, a) => acc + a.values.reduce((s, v) => s + (v || 0), 0),
-      0
-    );
-    const usedAxle = areas.reduce(
-      (acc, a) =>
-        acc +
-        a.values.reduce((s, v) => s + (v || 0), 0) * a.axleCoef,
-      0
-    );
-
-    const remainTotal = 19700 - usedTotal;
-    const remainAxle = 10000 - usedAxle;
-
-    const newAreas = areas.map((a) => {
-      const current = a.values.reduce((s, v) => s + (v || 0), 0);
-      const remainLocal = Math.max(a.limit - current, 0);
-      const limitByTotal = remainTotal;
-      const limitByAxle = remainAxle / a.axleCoef;
-      const logicalMax = Math.min(remainLocal, limitByTotal, limitByAxle);
+    const filled = AREA_INFO.map((area) => {
       return {
-        ...a,
-        suggest: Math.max(Math.floor(logicalMax), 0),
+        id: area.id,
+        sum: (weights[area.id] || []).reduce((a, b) => a + (parseFloat(b) || 0), 0),
       };
     });
-    setAreas(newAreas);
-  }, [areas.map((a) => a.values).flat().join(",")]);
 
-  const handleAreaChange = (index, newValues) => {
-    const newAreas = [...areas];
-    newAreas[index].values = newValues;
-    setAreas(newAreas);
-  };
+    const usedWeight = filled.reduce((sum, a) => sum + a.sum, 0);
+    const remain = 19700 - usedWeight;
+    const remain2axle = 10000 - secondAxleLoad;
 
-  const total = areas.reduce(
-    (acc, a) => acc + a.values.reduce((s, v) => s + (v || 0), 0),
-    0
-  );
-  const axleTotal = areas.reduce(
-    (acc, a) => acc + a.values.reduce((s, v) => s + (v || 0), 0) * a.axleCoef,
-    0
-  );
+    const defaultRatio = {
+      chukan1: 0.25,
+      chukan2: 0.45,
+      koubu: 0.3,
+    };
+
+    const h = filled.find((f) => f.id === "hinadan")?.sum || 0;
+    const o = {};
+    let avail = 19700 - h;
+    let axleAvail = 10000;
+    o.chukan1 = Math.min(4100, Math.floor(avail * defaultRatio.chukan1));
+    o.chukan2 = Math.min(6400, Math.floor(Math.min(avail * defaultRatio.chukan2, axleAvail * 0.5)));
+    o.koubu = Math.min(5500, Math.floor(Math.min(avail * defaultRatio.koubu, axleAvail * 0.5)));
+    o.hinadan = Math.min(3700, h);
+
+    setOptimal(o);
+  }, [weights]);
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h2>リフト重量記録（最大26便）</h2>
-      {areas.map((area, idx) => (
-        <LiftInput key={idx} index={idx} data={area} onChange={handleAreaChange} />
+      {AREA_INFO.map((area) => (
+        <div key={area.id} style={{ marginBottom: 30 }}>
+          <strong>{area.name}（{area.max.toLocaleString()}kg）</strong>
+          <div style={{ display: "flex", flexWrap: "wrap" }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <input
+                key={i}
+                type="number"
+                value={weights[area.id]?.[i] || ""}
+                onChange={(e) => updateWeight(area.id, i, e.target.value)}
+                style={{ width: 80, marginRight: 6, marginTop: 6 }}
+              />
+            ))}
+          </div>
+          <div>← エリア合計: {(weights[area.id]?.reduce((a, b) => a + (parseFloat(b) || 0), 0) || 0).toLocaleString()}kg</div>
+          <div>→ 積載目安: {optimal[area.id]?.toLocaleString() || 0}kg</div>
+        </div>
       ))}
       <hr />
-      <div>第2軸荷重: {axleTotal.toLocaleString()} / 10,000kg</div>
-      <div>総積載: {total.toLocaleString()} / 19,700kg</div>
+      <div>第2軸荷重: {Math.round(secondAxleLoad).toLocaleString()} / 10,000kg</div>
+      <div>総積載量: {totalWeight.toLocaleString()} / 19,700kg</div>
     </div>
   );
 }
