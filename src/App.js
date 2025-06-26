@@ -1,11 +1,10 @@
-// === App.js（現実仕様準拠：目安にエリア最大上限を適用） ===
 import React, { useState, useRef } from "react";
 
 export default function App() {
   const MAX_AXLE = 10000;
   const MAX_TOTAL = 19700;
   const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
-  const LIMIT = { ひな壇: 3700, 中間1: 4100, 中間2: 6400, 後部: 5500 }; // エリア別制限
+  const LIMIT = { ひな壇: 3700, 中間1: 4100, 中間2: 6400, 後部: 5500 };
   const INTERCEPT = 3317.33;
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
@@ -15,7 +14,13 @@ export default function App() {
   ];
 
   const blankRows = () => Array(4).fill({ left: "", right: "" });
-  const newEntry = () => ({ 便名: "", ひな壇: blankRows(), 中間1: blankRows(), 中間2: blankRows(), 後部: blankRows() });
+  const newEntry = () => ({
+    便名: "",
+    ひな壇: blankRows(),
+    中間1: blankRows(),
+    中間2: blankRows(),
+    後部: blankRows(),
+  });
 
   const [entries, setEntries] = useState([newEntry()]);
   const refs = useRef({});
@@ -37,7 +42,11 @@ export default function App() {
     const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
-    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0);
+    const targets = areaMeta.filter((a) => {
+      // 入力が未確定な行（両方空欄）があるエリアのみ目安表示対象とする
+      return en[a.key].some((r) => r.left === "" && r.right === "");
+    });
+
     if (targets.length > 0) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
       targets.forEach((a) => {
@@ -55,13 +64,14 @@ export default function App() {
     return { total, axle, estimate };
   };
 
-  const setVal = (ei, k, ri, side, v) => setEntries((p) => {
-    const cp = [...p];
-    const rows = cp[ei][k].map((r) => ({ ...r }));
-    rows[ri][side] = v;
-    cp[ei][k] = rows;
-    return cp;
-  });
+  const setVal = (ei, k, ri, side, v) =>
+    setEntries((p) => {
+      const cp = [...p];
+      const rows = cp[ei][k].map((r) => ({ ...r }));
+      rows[ri][side] = v;
+      cp[ei][k] = rows;
+      return cp;
+    });
 
   const clear = (ei, k, ri, side) => setVal(ei, k, ri, side, "");
 
@@ -85,11 +95,16 @@ export default function App() {
         return (
           <div key={ei} style={{ marginBottom: 32 }}>
             <div style={{ marginBottom: 8 }}>
-              便名：<input value={en.便名} onChange={(e) => {
-                const cp = [...entries];
-                cp[ei].便名 = e.target.value;
-                setEntries(cp);
-              }} style={{ width: 120 }} />
+              便名：
+              <input
+                value={en.便名}
+                onChange={(e) => {
+                  const cp = [...entries];
+                  cp[ei].便名 = e.target.value;
+                  setEntries(cp);
+                }}
+                style={{ width: 120 }}
+              />
             </div>
             {areaMeta.map(({ key, label }) => (
               <div key={key} style={{ marginBottom: 16 }}>
@@ -120,7 +135,9 @@ export default function App() {
                   </div>
                 ))}
                 <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
-                {estimate[key] !== undefined && <div>→ 積載目安: {estimate[key].toLocaleString()}kg</div>}
+                {estimate[key] !== undefined && (
+                  <div>→ 積載目安: {estimate[key].toLocaleString()}kg</div>
+                )}
               </div>
             ))}
             <div>第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg</div>
