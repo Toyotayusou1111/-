@@ -30,14 +30,16 @@ export default function App() {
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
 
   const totals = (en) => {
-    const total = areaMeta.reduce((sum, a) => sum + areaSum(en, a.key), 0);
+    const areaSums = {};
+    let total = 0;
+    let axle = INTERCEPT;
 
-    const axle =
-      areaSum(en, "ひな壇") * COEF.ひな壇 +
-      areaSum(en, "中間1") * COEF.中間1 +
-      areaSum(en, "中間2") * COEF.中間2 +
-      areaSum(en, "後部") * COEF.後部 +
-      INTERCEPT;
+    areaMeta.forEach(({ key }) => {
+      const sum = areaSum(en, key);
+      areaSums[key] = sum;
+      total += sum;
+      axle += sum * COEF[key];
+    });
 
     const remainTotal = Math.max(0, MAX_TOTAL - total);
     const remainAxle = MAX_AXLE - axle;
@@ -55,7 +57,7 @@ export default function App() {
         const ratio = COEF[a.key] / coefSum;
         const logicalTotal = remainTotal * ratio;
         const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
-        const maxLimit = LIMIT[a.key];
+        const maxLimit = LIMIT[a.key] - areaSums[a.key];
         const est = Math.min(logicalTotal, logicalAxle, maxLimit, remainTotal);
         estimate[a.key] = Math.max(0, Math.floor(est));
       });
