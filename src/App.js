@@ -28,7 +28,6 @@ export default function App() {
 
   const n = (v) => parseFloat(v) || 0;
   const areaSum = (en, k) => en[k].reduce((s, r) => s + n(r.left) + n(r.right), 0);
-  const isAreaEmpty = (rows) => rows.every(r => !r.left && !r.right);
 
   const totals = (en) => {
     const areaSums = {};
@@ -46,38 +45,19 @@ export default function App() {
 
     const remainTotal = Math.max(0, MAX_TOTAL - total);
     const remainAxle = MAX_AXLE - axle;
-
     const estimate = {};
 
-    const targets = areaMeta.filter(
-      (a) => isAreaEmpty(en[a.key]) && !overLimit[a.key]
-    );
+    let freeAreas = areaMeta.filter(({ key }) => !overLimit[key]);
+    const coefSum = freeAreas.reduce((sum, a) => sum + COEF[a.key], 0);
 
-    if (targets.length > 0 && remainTotal > 0) {
-      let estTotal = 0;
-      const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
-
-      targets.forEach((a) => {
-        const ratio = COEF[a.key] / coefSum;
-        const logicalTotal = remainTotal * ratio;
-        const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
-        const maxLimit = LIMIT[a.key];
-        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
-        estimate[a.key] = Math.floor(est);
-        estTotal += estimate[a.key];
-      });
-
-      if (estTotal < remainTotal) {
-        let diff = remainTotal - estTotal;
-        targets.forEach((a) => {
-          const canAdd = Math.min(diff, LIMIT[a.key] - estimate[a.key]);
-          if (canAdd > 0) {
-            estimate[a.key] += canAdd;
-            diff -= canAdd;
-          }
-        });
-      }
-    }
+    freeAreas.forEach(({ key }) => {
+      const current = areaSums[key];
+      const ratio = COEF[key] / coefSum;
+      const logicalTotal = remainTotal * ratio;
+      const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
+      const maxAddable = Math.min(logicalTotal, logicalAxle, LIMIT[key] - current);
+      estimate[key] = Math.floor(current + (maxAddable > 0 ? maxAddable : 0));
+    });
 
     return { total, axle, estimate, areaSums, overLimit };
   };
@@ -151,7 +131,7 @@ export default function App() {
                     />
                     <button onClick={() => clear(ei, key, ri, "right")}>×</button>
                   </div>
-                ))
+                ))}
                 <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
                 <div>
                   → 積載目安: {overLimit[key] ? "（超過中）" : estimate[key] !== undefined ? `${estimate[key].toLocaleString()}kg` : "-"}
