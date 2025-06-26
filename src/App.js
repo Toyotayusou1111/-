@@ -6,6 +6,7 @@ export default function App() {
   const COEF = { ひな壇: 0.6817, 中間1: 0.607, 中間2: 0.0975, 後部: 0.0433 };
   const LIMIT = { ひな壇: 3700, 中間1: 4100, 中間2: 6400, 後部: 5500 };
   const INTERCEPT = 3317.33;
+
   const areaMeta = [
     { key: "ひな壇", label: "ひな壇（3,700kg）" },
     { key: "中間1", label: "中間①（4,100kg）" },
@@ -31,6 +32,7 @@ export default function App() {
   const totals = (en) => {
     const areaSums = areaMeta.map((a) => ({ key: a.key, sum: areaSum(en, a.key) }));
     const total = areaSums.reduce((s, a) => s + a.sum, 0);
+
     const axle =
       areaSum(en, "ひな壇") * COEF.ひな壇 +
       areaSum(en, "中間1") * COEF.中間1 +
@@ -42,21 +44,17 @@ export default function App() {
     const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
-    const targets = areaMeta.filter((a) => {
-      // 入力が未確定な行（両方空欄）があるエリアのみ目安表示対象とする
-      return en[a.key].some((r) => r.left === "" && r.right === "");
-    });
+    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0); // 入力ゼロのみに限定
 
     if (targets.length > 0) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
+
       targets.forEach((a) => {
-        const isFree = a.key === "中間2" || a.key === "後部";
-        const logicalTotal = remainTotal * (COEF[a.key] / coefSum);
+        const ratio = COEF[a.key] / coefSum;
+        const logicalTotal = remainTotal * ratio;
         const logicalAxle = remainAxle > 0 ? remainAxle / COEF[a.key] : 0;
         const maxLimit = LIMIT[a.key];
-        const est = isFree
-          ? Math.min(logicalTotal, maxLimit)
-          : Math.min(logicalTotal, logicalAxle, maxLimit);
+        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
         estimate[a.key] = Math.max(0, Math.floor(est));
       });
     }
