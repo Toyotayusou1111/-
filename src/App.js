@@ -44,8 +44,9 @@ export default function App() {
 
     const estimate = {};
 
+    // ← 修正ポイント：左右どちらか空欄の行があるエリアを「未確定」とみなして目安表示対象にする
     const targets = areaMeta.filter((a) =>
-      en[a.key].every((r) => r.left === "" && r.right === "")
+      en[a.key].some((r) => r.left === "" || r.right === "")
     );
 
     if (targets.length > 0) {
