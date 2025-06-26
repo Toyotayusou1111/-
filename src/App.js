@@ -44,7 +44,7 @@ export default function App() {
     const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
-    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0); // 入力ゼロのみに限定
+    const targets = areaMeta.filter((a) => areaSum(en, a.key) === 0); // 入力なしのみに限定
 
     if (targets.length > 0) {
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
