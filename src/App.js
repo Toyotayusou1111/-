@@ -51,6 +51,7 @@ export default function App() {
     );
 
     if (targets.length > 0) {
+      let estTotal = 0;
       const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
 
       targets.forEach((a) => {
@@ -58,9 +59,21 @@ export default function App() {
         const logicalTotal = remainTotal * ratio;
         const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
         const maxLimit = LIMIT[a.key] - areaSums[a.key];
-        const est = Math.min(logicalTotal, logicalAxle, maxLimit, remainTotal);
-        estimate[a.key] = Math.max(0, Math.floor(est));
+        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
+        estimate[a.key] = Math.floor(est);
+        estTotal += estimate[a.key];
       });
+
+      if (estTotal < remainTotal) {
+        let diff = remainTotal - estTotal;
+        targets.forEach((a) => {
+          const canAdd = Math.min(diff, (LIMIT[a.key] - areaSums[a.key]) - estimate[a.key]);
+          if (canAdd > 0) {
+            estimate[a.key] += canAdd;
+            diff -= canAdd;
+          }
+        });
+      }
     }
 
     return { total, axle, estimate };
