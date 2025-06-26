@@ -54,14 +54,9 @@ export default function App() {
       targets.forEach((a) => {
         const ratio = COEF[a.key] / coefSum;
         const logicalTotal = remainTotal * ratio;
-        const logicalAxle = remainAxle > 0 ? remainAxle / COEF[a.key] : 0;
+        const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
         const maxLimit = LIMIT[a.key];
-        const est = Math.min(
-          logicalTotal,
-          logicalAxle,
-          maxLimit,
-          remainTotal // ← これを追加（全体上限も制限に含める）
-        );
+        const est = Math.min(logicalTotal, logicalAxle, maxLimit, remainTotal);
         estimate[a.key] = Math.max(0, Math.floor(est));
       });
     }
