@@ -42,32 +42,37 @@ export default function App() {
     });
 
     const remainTotal = Math.max(0, MAX_TOTAL - total);
-    const remainAxle = MAX_AXLE - axle;
+    const remainAxle = Math.max(0, MAX_AXLE - axle);
 
     const estimate = {};
 
-    const targets = areaMeta.filter((a) =>
-      en[a.key].some((r) => r.left === "" || r.right === "")
+    const targets = areaMeta.filter(
+      ({ key }) =>
+        en[key].some((r) => r.left === "" || r.right === "")
     );
 
     if (targets.length > 0) {
-      let estTotal = 0;
-      const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
+      const coefSum = targets.reduce((sum, a) => sum + COEF[a.key], 0);
+      let distributedTotal = 0;
 
       targets.forEach((a) => {
         const ratio = COEF[a.key] / coefSum;
         const logicalTotal = remainTotal * ratio;
-        const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
-        const maxLimit = LIMIT[a.key] - areaSums[a.key];
-        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
+        const logicalAxle = remainAxle * ratio;
+        const limitRemain = LIMIT[a.key] - areaSums[a.key];
+        const est = Math.min(logicalTotal, logicalAxle, limitRemain);
         estimate[a.key] = Math.floor(est);
-        estTotal += estimate[a.key];
+        distributedTotal += estimate[a.key];
       });
 
-      if (estTotal < remainTotal) {
-        let diff = remainTotal - estTotal;
+      // 余剰重量があれば可能な範囲で追加配分
+      let diff = remainTotal - distributedTotal;
+      if (diff > 0) {
         targets.forEach((a) => {
-          const canAdd = Math.min(diff, (LIMIT[a.key] - areaSums[a.key]) - estimate[a.key]);
+          const canAdd = Math.min(
+            diff,
+            (LIMIT[a.key] - areaSums[a.key]) - estimate[a.key]
+          );
           if (canAdd > 0) {
             estimate[a.key] += canAdd;
             diff -= canAdd;
