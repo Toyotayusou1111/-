@@ -44,7 +44,6 @@ export default function App() {
 
     const estimate = {};
 
-    // ← 修正ポイント：左右どちらか空欄の行があるエリアを「未確定」とみなして目安表示対象にする
     const targets = areaMeta.filter((a) =>
       en[a.key].some((r) => r.left === "" || r.right === "")
     );
@@ -57,7 +56,12 @@ export default function App() {
         const logicalTotal = remainTotal * ratio;
         const logicalAxle = remainAxle > 0 ? remainAxle / COEF[a.key] : 0;
         const maxLimit = LIMIT[a.key];
-        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
+        const est = Math.min(
+          logicalTotal,
+          logicalAxle,
+          maxLimit,
+          remainTotal // ← これを追加（全体上限も制限に含める）
+        );
         estimate[a.key] = Math.max(0, Math.floor(est));
       });
     }
