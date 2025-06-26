@@ -33,41 +33,43 @@ export default function App() {
     const areaSums = {};
     let total = 0;
     let axle = INTERCEPT;
+    const overLimit = {};
 
     areaMeta.forEach(({ key }) => {
       const sum = areaSum(en, key);
       areaSums[key] = sum;
       total += sum;
       axle += sum * COEF[key];
+      if (sum > LIMIT[key]) overLimit[key] = true;
     });
 
     const remainTotal = Math.max(0, MAX_TOTAL - total);
-    const remainAxle = Math.max(0, MAX_AXLE - axle);
+    const remainAxle = MAX_AXLE - axle;
 
     const estimate = {};
 
     const targets = areaMeta.filter(
-      ({ key }) =>
-        en[key].some((r) => r.left === "" || r.right === "")
+      (a) =>
+        !overLimit[a.key] &&
+        en[a.key].some((r) => r.left === "" || r.right === "")
     );
 
-    if (targets.length > 0) {
-      const coefSum = targets.reduce((sum, a) => sum + COEF[a.key], 0);
-      let distributedTotal = 0;
+    if (targets.length > 0 && remainTotal > 0) {
+      let estTotal = 0;
+      const coefSum = targets.reduce((s, a) => s + COEF[a.key], 0);
 
       targets.forEach((a) => {
         const ratio = COEF[a.key] / coefSum;
         const logicalTotal = remainTotal * ratio;
-        const logicalAxle = remainAxle * ratio;
-        const limitRemain = LIMIT[a.key] - areaSums[a.key];
-        const est = Math.min(logicalTotal, logicalAxle, limitRemain);
+        const logicalAxle = remainAxle > 0 ? remainAxle * ratio : 0;
+        const maxLimit = LIMIT[a.key] - areaSums[a.key];
+        const est = Math.min(logicalTotal, logicalAxle, maxLimit);
         estimate[a.key] = Math.floor(est);
-        distributedTotal += estimate[a.key];
+        estTotal += estimate[a.key];
       });
 
-      // 余剰重量があれば可能な範囲で追加配分
-      let diff = remainTotal - distributedTotal;
-      if (diff > 0) {
+      if (estTotal < remainTotal) {
+        let diff = remainTotal - estTotal;
         targets.forEach((a) => {
           const canAdd = Math.min(
             diff,
@@ -81,7 +83,7 @@ export default function App() {
       }
     }
 
-    return { total, axle, estimate };
+    return { total, axle, estimate, areaSums, overLimit };
   };
 
   const setVal = (ei, k, ri, side, v) =>
@@ -111,7 +113,7 @@ export default function App() {
     <div style={{ padding: 16, fontFamily: "sans-serif", fontSize: 14 }}>
       <h2>リフト重量記録（最大26便）</h2>
       {entries.map((en, ei) => {
-        const { total, axle, estimate } = totals(en);
+        const { total, axle, estimate, areaSums, overLimit } = totals(en);
         return (
           <div key={ei} style={{ marginBottom: 32 }}>
             <div style={{ marginBottom: 8 }}>
@@ -155,9 +157,9 @@ export default function App() {
                   </div>
                 ))}
                 <div>← エリア合計: {areaSum(en, key).toLocaleString()}kg</div>
-                {estimate[key] !== undefined && (
-                  <div>→ 積載目安: {estimate[key].toLocaleString()}kg</div>
-                )}
+                <div>
+                  → 積載目安: {overLimit[key] ? "（超過中）" : estimate[key] !== undefined ? `${estimate[key].toLocaleString()}kg` : "-"}
+                </div>
               </div>
             ))}
             <div>第2軸荷重: {Math.round(axle).toLocaleString()}kg / {MAX_AXLE.toLocaleString()}kg</div>
